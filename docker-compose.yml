@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: paperprints-db
+    environment:
+      POSTGRES_DB: paperprints
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d paperprints"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: paperprints-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: paperprints-api
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://admin:secret@postgres:5432/paperprints
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=docker-dev-secret-change-in-prod
+      - PDF_SERVICE_URL=http://pdf-service:8001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src
+
+  pdf-service:
+    build: ./pdf-service
+    container_name: paperprints-pdf
+    ports:
+      - "8001:8001"
+
+volumes:
+  pgdata:

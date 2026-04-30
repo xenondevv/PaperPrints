@@ -1,0 +1,17 @@
+{
+  "name": "paper-prints",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-client distributed printing platform",
+  "scripts": {
+    "backend:dev": "cd backend && npm run dev",
+    "backend:start": "cd backend && npm start",
+    "vendor-web:dev": "cd vendor-web && npm run dev",
+    "vendor-web:build": "cd vendor-web && npm run build",
+    "install:all": "cd backend && npm install && cd ../vendor-web && npm install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/<your-org>/paper-prints.git"
+  }
+}
