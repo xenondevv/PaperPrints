@@ -12,6 +12,7 @@ module.exports = {
   },
   jwt: {
     secret: process.env.JWT_SECRET,
+    refreshSecret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
   s3: {
@@ -20,5 +21,9 @@ module.exports = {
   },
   pdfService: {
     url: process.env.PDF_SERVICE_URL,
+  },
+  firebase: {
+    serviceAccountJson: process.env.FIREBASE_SERVICE_ACCOUNT_JSON || null,
+    serviceAccountPath: process.env.FIREBASE_SERVICE_ACCOUNT_PATH || null,
   },
 };

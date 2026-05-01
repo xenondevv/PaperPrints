@@ -1,5 +1,18 @@
-// Vendors Module - Routes
-// GET    /api/vendors/nearby?lat=X&lng=Y&radius=5
-// GET    /api/vendors/:id
-// PATCH  /api/vendors/:id/settings
-// PATCH  /api/vendors/:id/status
+'use strict';
+
+const { Router } = require('express');
+const { requireAuth } = require('../../middleware/auth.middleware');
+const { handleGetNearby, handleGetById } = require('./vendors.controller');
+
+const router = Router();
+
+// All vendor reads require auth
+router.use(requireAuth);
+
+// GET /api/vendors/nearby?lat=X&lng=Y&radius=10
+router.get('/nearby', handleGetNearby);
+
+// GET /api/vendors/:id
+router.get('/:id', handleGetById);
+
+module.exports = router;

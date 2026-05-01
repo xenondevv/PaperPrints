@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1058165391039",
+    "project_id": "paper-prints-app",
+    "storage_bucket": "paper-prints-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1058165391039:android:b066f623cc7b4397e9500a",
+        "android_client_info": {
+          "package_name": "com.paperprints.paper_prints_user"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1058165391039-sbvlrahekpl84c16a9k4rkr7rjlef1cq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.paperprints.paper_prints_user",
+            "certificate_hash": "223a1e940d1c7528c5e4d503e6dbe944cf9ef66f"
+          }
+        },
+        {
+          "client_id": "1058165391039-361ued3ch5ljl10eb8t608s05ff40dms.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJJ1WbIT6VgLdlnF1p97r_4x3FkhVmvh0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1058165391039-361ued3ch5ljl10eb8t608s05ff40dms.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
