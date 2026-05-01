@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:paper_prints_user/core/constants/app_constants.dart';
 import 'package:paper_prints_user/core/network/socket_service.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
@@ -44,8 +45,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
     socket.onOrderRejected((data) {
       if (data['orderId'] == widget.orderId) {
-        ref.read(ordersProvider.notifier).updateFromSocket(
-              widget.orderId, OrderStatus.rejected);
+        ref
+            .read(ordersProvider.notifier)
+            .updateFromSocket(widget.orderId, OrderStatus.rejected);
       }
     });
 
@@ -77,11 +79,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Cancel Order',
-            style: TextStyle(color: AppColors.textPrimary)),
-        content: const Text('Are you sure you want to cancel this order?',
-            style: TextStyle(color: AppColors.textSecondary)),
+        title: const Text('Cancel Order'),
+        content: const Text('Are you sure you want to cancel this order?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -108,6 +107,36 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     }
   }
 
+  Future<void> _openMaps(OrderModel order) async {
+    if (order.shopLat == null || order.shopLng == null) return;
+    final url =
+        'https://www.google.com/maps/dir/?api=1&destination=${order.shopLat},${order.shopLng}';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+    }
+  }
+
+  Future<void> _callShop(OrderModel order) async {
+    if (order.shopPhone == null) return;
+    final url = 'tel:${order.shopPhone}';
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url));
+    }
+  }
+
+  void _copyToClipboard(String text, String label) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label copied'),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(ordersProvider);
@@ -120,60 +149,249 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       );
     }
 
+    // Booking code — last 4 digits of order number or a derived code
+    final bookingCode = order.orderNumber.length >= 4
+        ? order.orderNumber.substring(order.orderNumber.length - 4)
+        : order.orderNumber;
+
+    final isPending = order.status == OrderStatus.pending;
+    final isTerminal = OrderStatus.isTerminal(order.status);
+    final isReady = order.status == OrderStatus.ready;
+
     return Scaffold(
+      backgroundColor: AppColors.bg,
       appBar: AppBar(
         leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop()),
-        title: Text('#${order.orderNumber}'),
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
         actions: [
-          _StatusBadge(status: order.status),
-          const SizedBox(width: 12),
+          // Notification bell placeholder
+          IconButton(
+            icon: const Icon(Icons.notifications_none_outlined),
+            onPressed: () {},
+          ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ETA card
+            // ── Status Banner ──────────────────────────────────────────
+            _StatusBanner(status: order.status),
+            const SizedBox(height: 20),
+
+            // ── Order ID + Booking Code ────────────────────────────────
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Order ID',
+                        style: TextStyle(
+                            color: AppColors.textTertiary, fontSize: 12)),
+                    Text(order.orderNumber,
+                        style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15)),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('Booking Code',
+                        style: TextStyle(
+                            color: AppColors.textTertiary, fontSize: 12)),
+                    Text(bookingCode,
+                        style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text('Total Amount: ₹${order.totalPrice.toStringAsFixed(2)}',
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 14)),
+
+            const SizedBox(height: 20),
+
+            // ── Action Buttons + QR ────────────────────────────────────
+            if (isReady && order.qrCodeUrl != null)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _ActionButton(
+                          icon: Icons.directions_outlined,
+                          label: 'Get Direction',
+                          onTap: () => _openMaps(order),
+                        ),
+                        const SizedBox(height: 10),
+                        _ActionButton(
+                          icon: Icons.phone_outlined,
+                          label: 'Call Printshop',
+                          onTap: () => _callShop(order),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // QR Code
+                  Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    padding: const EdgeInsets.all(6),
+                    child: Image.network(
+                      order.qrCodeUrl!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(Icons.qr_code,
+                              size: 60, color: AppColors.textPrimary)),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: _ActionButton(
+                      icon: Icons.directions_outlined,
+                      label: 'Get Direction',
+                      onTap: () => _openMaps(order),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _ActionButton(
+                      icon: Icons.phone_outlined,
+                      label: 'Call Printshop',
+                      onTap: () => _callShop(order),
+                    ),
+                  ),
+                ],
+              ),
+
+            // ETA
             if (order.estimatedTime != null &&
                 order.status == OrderStatus.accepted) ...[
-              _EtaCard(minutes: order.estimatedTime!),
-              const SizedBox(height: 16),
-            ],
-
-            // Status tracker
-            _StatusTracker(currentStatus: order.status),
-            const SizedBox(height: 16),
-
-            // QR pickup card
-            if (order.status == OrderStatus.ready &&
-                order.qrCodeUrl != null) ...[
-              _QRCard(
-                  qrUrl: order.qrCodeUrl!,
-                  orderNumber: order.orderNumber),
-              const SizedBox(height: 16),
-            ],
-
-            // Details
-            _DetailsCard(order: order),
-            const SizedBox(height: 16),
-
-            // Cancel button
-            if (order.status == OrderStatus.pending)
-              OutlinedButton(
-                onPressed: _cancel,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  minimumSize: const Size(double.infinity, 52),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySurface,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Text('Cancel Order',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+                child: Row(children: [
+                  const Icon(Icons.timer_outlined,
+                      color: AppColors.primary, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Ready in ~${order.estimatedTime} min',
+                      style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600)),
+                ]),
               ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // ── Status Tracker ─────────────────────────────────────────
+            _StatusTracker(currentStatus: order.status),
+
+            const SizedBox(height: 16),
+
+            // ── Cancel Button ──────────────────────────────────────────
+            if (isPending)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _cancel,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                    backgroundColor: AppColors.surface,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Cancel Order'),
+                ),
+              ),
+
+            if (!isTerminal) ...[
+              const SizedBox(height: 20),
+              // ── Delivery section ─────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Want your prints delivered?',
+                        style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15)),
+                    const SizedBox(height: 4),
+                    const Text(
+                        'We don\'t provide delivery, but we make it easy! You can copy the shop\'s location and address and paste them directly into any delivery app.',
+                        style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                            height: 1.4)),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _CopyButton(
+                            icon: Icons.location_on_outlined,
+                            label: 'Copy Location',
+                            onTap: order.shopLat != null
+                                ? () => _copyToClipboard(
+                                    '${order.shopLat},${order.shopLng}',
+                                    'Location')
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _CopyButton(
+                            icon: Icons.home_outlined,
+                            label: 'Copy Address',
+                            onTap: order.shopAddress != null
+                                ? () => _copyToClipboard(
+                                    order.shopAddress!, 'Address')
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // ── Order Details Expandable ────────────────────────────────
+            _OrderDetailsRow(order: order),
           ],
         ),
       ),
@@ -181,93 +399,166 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   }
 }
 
-// ─── Sub-widgets ──────────────────────────────────────────────────────────────
+// ─── Status Banner ────────────────────────────────────────────────────────────
 
-class _EtaCard extends StatelessWidget {
-  final String minutes;
-  const _EtaCard({required this.minutes});
+class _StatusBanner extends StatelessWidget {
+  final String status;
+  const _StatusBanner({required this.status});
+
+  String get _title => switch (status) {
+        OrderStatus.pending => 'Waiting for Confirmation',
+        OrderStatus.accepted => 'Order Accepted!',
+        OrderStatus.processing => 'Printing in Progress',
+        OrderStatus.ready => 'Ready for Pickup!',
+        OrderStatus.completed => 'Order Completed',
+        OrderStatus.rejected => 'Order Rejected',
+        OrderStatus.cancelled => 'Order Cancelled',
+        _ => 'Processing...',
+      };
+
+  String get _subtitle => switch (status) {
+        OrderStatus.pending =>
+          'If confirmation takes longer, we\nrequest you to call the shop directly',
+        OrderStatus.accepted =>
+          'Your order has been accepted by the shop',
+        OrderStatus.processing => 'Your documents are being printed',
+        OrderStatus.ready =>
+          'Show the QR code at the counter to collect your prints',
+        OrderStatus.completed => 'Your prints have been collected',
+        OrderStatus.rejected =>
+          'The shop was unable to process your order',
+        OrderStatus.cancelled => 'Your order has been cancelled',
+        _ => '',
+      };
+
+  Color get _bgColor => switch (status) {
+        OrderStatus.pending => const Color(0xFFFCE4EC),
+        OrderStatus.accepted => const Color(0xFFE8F5E9),
+        OrderStatus.processing => const Color(0xFFE3F2FD),
+        OrderStatus.ready => const Color(0xFFE8F5E9),
+        OrderStatus.completed => const Color(0xFFF5F5F5),
+        OrderStatus.rejected => const Color(0xFFFFEBEE),
+        OrderStatus.cancelled => const Color(0xFFF5F5F5),
+        _ => AppColors.surface,
+      };
+
+  Color get _textColor => switch (status) {
+        OrderStatus.pending => const Color(0xFFD81B60),
+        OrderStatus.accepted => AppColors.success,
+        OrderStatus.processing => AppColors.info,
+        OrderStatus.ready => AppColors.success,
+        OrderStatus.completed => AppColors.textSecondary,
+        OrderStatus.rejected => AppColors.error,
+        OrderStatus.cancelled => AppColors.textSecondary,
+        _ => AppColors.textPrimary,
+      };
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: AppColors.primarySurface,
-          borderRadius: BorderRadius.circular(12),
+          color: _bgColor,
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: Row(children: [
-          const Icon(Icons.timer_outlined,
-              color: AppColors.primary, size: 20),
-          const SizedBox(width: 10),
-          Text('Ready in ~$minutes min',
-              style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15)),
-        ]),
+        child: Column(
+          children: [
+            Text(_title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: _textColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18)),
+            if (_subtitle.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(_subtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: _textColor.withValues(alpha: 0.7),
+                      fontSize: 12,
+                      height: 1.4)),
+            ],
+          ],
+        ),
       );
 }
 
-class _DetailsCard extends StatelessWidget {
-  final OrderModel order;
-  const _DetailsCard({required this.order});
+// ─── Action Button ────────────────────────────────────────────────────────────
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  const _ActionButton(
+      {required this.icon, required this.label, this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    final date =
-        '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}';
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('ORDER DETAILS',
-            style: TextStyle(
-                color: AppColors.textTertiary,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5)),
-        const SizedBox(height: 14),
-        _Row('Copies', '${order.copies}'),
-        _Row('Double-sided', order.isDoubleSided ? 'Yes' : 'No'),
-        _Row('Total', '₹${order.totalPrice.toStringAsFixed(2)}',
-            highlight: true),
-        _Row('Placed', date, isLast: true),
-      ]),
-    );
-  }
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+          decoration: BoxDecoration(
+            color: AppColors.bg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 18,
+                  color: onTap != null
+                      ? AppColors.textPrimary
+                      : AppColors.textDisabled),
+              const SizedBox(width: 8),
+              Text(label,
+                  style: TextStyle(
+                      color: onTap != null
+                          ? AppColors.textPrimary
+                          : AppColors.textDisabled,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13)),
+            ],
+          ),
+        ),
+      );
 }
 
-class _Row extends StatelessWidget {
-  final String label, value;
-  final bool highlight, isLast;
-  const _Row(this.label, this.value,
-      {this.highlight = false, this.isLast = false});
+// ─── Copy Button ──────────────────────────────────────────────────────────────
+
+class _CopyButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  const _CopyButton({required this.icon, required this.label, this.onTap});
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: isLast
-            ? null
-            : const BoxDecoration(
-                border: Border(
-                    bottom: BorderSide(color: AppColors.border, width: 0.5))),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label,
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 14)),
-            Text(value,
-                style: TextStyle(
-                    color: highlight
-                        ? AppColors.success
-                        : AppColors.textPrimary,
-                    fontSize: highlight ? 16 : 14,
-                    fontWeight: FontWeight.w600)),
-          ],
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          decoration: BoxDecoration(
+            color: AppColors.bg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 15,
+                  color: onTap != null
+                      ? AppColors.textSecondary
+                      : AppColors.textDisabled),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: TextStyle(
+                      color: onTap != null
+                          ? AppColors.textSecondary
+                          : AppColors.textDisabled,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 12)),
+            ],
+          ),
         ),
       );
 }
@@ -297,11 +588,28 @@ class _StatusTracker extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
       child: isTerminal
-          ? _TerminalRow(status: currentStatus)
+          ? Row(children: [
+              Icon(
+                currentStatus == OrderStatus.rejected
+                    ? Icons.cancel_outlined
+                    : Icons.block_outlined,
+                color: AppColors.error,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                currentStatus == OrderStatus.rejected
+                    ? 'Rejected by vendor'
+                    : 'Order cancelled',
+                style: const TextStyle(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15),
+              ),
+            ])
           : Column(
               children: _steps.asMap().entries.map((e) {
                 final idx = e.key;
@@ -322,26 +630,33 @@ class _StatusTracker extends StatelessWidget {
                       if (!isLast)
                         Container(
                             width: 2,
-                            height: 36,
+                            height: 32,
                             color: isDone
-                                ? AppColors.success
+                                ? AppColors.primary
                                 : AppColors.border),
                     ]),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(top: 4, bottom: 20),
+                        padding:
+                            const EdgeInsets.only(top: 4, bottom: 18),
                         child: Text(step.$2,
                             style: TextStyle(
                                 color: isActive
-                                    ? AppColors.primaryLight
+                                    ? AppColors.primary
                                     : isDone
                                         ? AppColors.textPrimary
                                         : AppColors.textDisabled,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                                 fontSize: 14)),
                       ),
                     ),
+                    if (isDone)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Icon(Icons.check_circle,
+                            size: 16, color: AppColors.primary),
+                      ),
                   ],
                 );
               }).toList(),
@@ -362,173 +677,130 @@ class _StepIcon extends StatelessWidget {
         height: 28,
         decoration: BoxDecoration(
           color: isDone
-              ? AppColors.success
+              ? AppColors.primary
               : isActive
-                  ? AppColors.primary
-                  : AppColors.border,
+                  ? AppColors.primarySurface
+                  : AppColors.surface,
           shape: BoxShape.circle,
+          border: isActive
+              ? Border.all(color: AppColors.primary, width: 2)
+              : Border.all(color: AppColors.border),
         ),
         child: Icon(
           isDone ? Icons.check : icon,
           size: 14,
-          color: isDone || isActive ? Colors.white : AppColors.textDisabled,
+          color: isDone
+              ? Colors.white
+              : isActive
+                  ? AppColors.primary
+                  : AppColors.textDisabled,
         ),
       );
 }
 
-class _TerminalRow extends StatelessWidget {
-  final String status;
-  const _TerminalRow({required this.status});
+// ─── Order Details Expandable Row ─────────────────────────────────────────────
+
+class _OrderDetailsRow extends StatefulWidget {
+  final OrderModel order;
+  const _OrderDetailsRow({required this.order});
 
   @override
-  Widget build(BuildContext context) {
-    final isRejected = status == OrderStatus.rejected;
-    return Row(children: [
-      Icon(
-        isRejected ? Icons.cancel_outlined : Icons.block_outlined,
-        color: isRejected ? AppColors.error : AppColors.textDisabled,
-      ),
-      const SizedBox(width: 10),
-      Text(
-        isRejected ? 'Rejected by vendor' : 'Order cancelled',
-        style: TextStyle(
-          color: isRejected ? AppColors.error : AppColors.textDisabled,
-          fontWeight: FontWeight.w600,
-          fontSize: 15,
-        ),
-      ),
-    ]);
-  }
+  State<_OrderDetailsRow> createState() => _OrderDetailsRowState();
 }
 
-// ─── QR Card ─────────────────────────────────────────────────────────────────
-
-class _QRCard extends StatelessWidget {
-  final String qrUrl, orderNumber;
-  const _QRCard({required this.qrUrl, required this.orderNumber});
+class _OrderDetailsRowState extends State<_OrderDetailsRow> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
-      ),
-      child: Column(children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.check_circle, size: 14, color: AppColors.success),
-                SizedBox(width: 5),
-                Text('Ready for Pickup',
+    final order = widget.order;
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                const Text('View Order Details',
                     style: TextStyle(
-                        color: AppColors.success,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13)),
-              ]),
-            ),
-            IconButton(
-              icon: const Icon(Icons.share_outlined,
-                  color: AppColors.primary),
-              onPressed: () => Share.share(
-                  'Paper Prints — Order #$orderNumber QR: $qrUrl'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Show this QR code at the counter to collect your prints.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.25),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Image.network(
-            qrUrl,
-            width: 180,
-            height: 180,
-            errorBuilder: (_, __, ___) => const SizedBox(
-              width: 180,
-              height: 180,
-              child: Center(
-                  child: Icon(Icons.qr_code, size: 80, color: Colors.black45)),
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14)),
+                const Spacer(),
+                Icon(
+                    _expanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_right,
+                    color: AppColors.textTertiary),
+              ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        Text('Order #$orderNumber',
-            style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w800,
-                fontSize: 18)),
-        const SizedBox(height: 12),
-        const Row(children: [
-          Icon(Icons.info_outline,
-              size: 14, color: AppColors.textTertiary),
-          SizedBox(width: 6),
-          Expanded(
-            child: Text(
-                'Valid for 24 hours after the order is marked ready',
-                style: TextStyle(
-                    color: AppColors.textTertiary, fontSize: 12)),
+        if (_expanded)
+          Container(
+            margin: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: [
+                _DetailRow('Copies', '${order.copies}'),
+                _DetailRow(
+                    'Double-sided', order.isDoubleSided ? 'Yes' : 'No'),
+                _DetailRow(
+                    'Total',
+                    '₹${order.totalPrice.toStringAsFixed(2)}',
+                    highlight: true),
+                _DetailRow(
+                    'Placed',
+                    '${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}',
+                    isLast: true),
+              ],
+            ),
           ),
-        ]),
-      ]),
+      ],
     );
   }
 }
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-
-class _StatusBadge extends StatelessWidget {
-  final String status;
-  const _StatusBadge({required this.status});
-
-  Color get _color => switch (status) {
-        OrderStatus.pending => AppColors.warning,
-        OrderStatus.accepted => AppColors.info,
-        OrderStatus.processing => AppColors.primaryLight,
-        OrderStatus.ready => AppColors.success,
-        OrderStatus.rejected => AppColors.error,
-        _ => AppColors.textTertiary,
-      };
+class _DetailRow extends StatelessWidget {
+  final String label, value;
+  final bool highlight, isLast;
+  const _DetailRow(this.label, this.value,
+      {this.highlight = false, this.isLast = false});
 
   @override
   Widget build(BuildContext context) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: _color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          OrderStatus.label(status),
-          style: TextStyle(
-              color: _color,
-              fontSize: 12,
-              fontWeight: FontWeight.w600),
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: isLast
+            ? null
+            : const BoxDecoration(
+                border: Border(
+                    bottom:
+                        BorderSide(color: AppColors.border, width: 0.5))),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label,
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13)),
+            Text(value,
+                style: TextStyle(
+                    color:
+                        highlight ? AppColors.primary : AppColors.textPrimary,
+                    fontSize: highlight ? 15 : 13,
+                    fontWeight: FontWeight.w600)),
+          ],
         ),
       );
 }

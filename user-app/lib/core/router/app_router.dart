@@ -11,7 +11,6 @@ import 'package:paper_prints_user/features/orders/screens/order_detail_screen.da
 import 'package:paper_prints_user/features/profile/screens/profile_screen.dart';
 import 'package:paper_prints_user/shared/widgets/main_shell.dart';
 
-
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
@@ -30,29 +29,31 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Auth
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
 
-      // Main shell with bottom nav
+      // Main shell — only 3 tabs in nav bar
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
-          GoRoute(path: '/shops', builder: (_, __) => const ShopListScreen()),
           GoRoute(path: '/upload', builder: (_, state) {
             final extra = state.extra as Map<String, dynamic>?;
             return UploadScreen(preselectedVendorId: extra?['vendorId'] as String?);
           }),
           GoRoute(path: '/orders', builder: (_, __) => const OrderHistoryScreen()),
-          GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
         ],
       ),
 
-      // Detail screens
+      // Push routes (not in nav bar)
+      GoRoute(path: '/shops', builder: (_, __) => const ShopListScreen()),
+      GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
       GoRoute(
         path: '/shops/:id',
-        builder: (_, state) => ShopDetailScreen(vendorId: state.pathParameters['id']!),
+        builder: (_, state) =>
+            ShopDetailScreen(vendorId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/orders/:id',
-        builder: (_, state) => OrderDetailScreen(orderId: state.pathParameters['id']!),
+        builder: (_, state) =>
+            OrderDetailScreen(orderId: state.pathParameters['id']!),
       ),
     ],
   );

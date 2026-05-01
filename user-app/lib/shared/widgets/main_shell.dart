@@ -6,12 +6,11 @@ class MainShell extends StatelessWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
+  // 3 tabs only: Home, Print, Orders
   static const _tabs = [
     ('/home', Icons.home_rounded, Icons.home_outlined, 'Home'),
-    ('/shops', Icons.storefront_rounded, Icons.storefront_outlined, 'Shops'),
-    ('/upload', Icons.cloud_upload_rounded, Icons.cloud_upload_outlined, 'Upload'),
+    ('/upload', Icons.print_rounded, Icons.print_outlined, 'Print'),
     ('/orders', Icons.receipt_long_rounded, Icons.receipt_long_outlined, 'Orders'),
-    ('/profile', Icons.person_rounded, Icons.person_outlined, 'Profile'),
   ];
 
   int _tabIndex(BuildContext context) {
@@ -30,13 +29,23 @@ class MainShell extends StatelessWidget {
       body: child,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
+          color: AppColors.bg,
           border: Border(
-            top: BorderSide(color: AppColors.border, width: 0.5),
+            top: BorderSide(color: AppColors.border, width: 0.8),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x0A000000),
+              blurRadius: 8,
+              offset: Offset(0, -2),
+            ),
+          ],
         ),
         child: BottomNavigationBar(
           currentIndex: idx,
           onTap: (i) => context.go(_tabs[i].$1),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
           items: _tabs
               .asMap()
               .entries

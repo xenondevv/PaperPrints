@@ -23,7 +23,7 @@ class PaperPrintsApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Paper Prints',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
+      theme: AppTheme.light,
       routerConfig: router,
     );
   }

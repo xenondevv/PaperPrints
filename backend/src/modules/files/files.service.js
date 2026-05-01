@@ -1,55 +1,88 @@
 'use strict';
 
-const { PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const { v4: uuidv4 }   = require('uuid');
-const axios            = require('axios');
-const s3               = require('../../config/s3');
-const env              = require('../../config/env');
-const { query }        = require('../../config/db');
+const fs   = require('fs');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+const env  = require('../../config/env');
+const { query } = require('../../config/db');
 
-/**
- * Upload a PDF buffer to S3 and analyse pages via the pdf-service.
- * Returns the saved FileRecord (matching Flutter's FileRecord model).
- */
-async function uploadFile(userId, buffer, originalName) {
-  const fileId  = uuidv4();
-  const s3Key   = `uploads/${userId}/${fileId}.pdf`;
-  const bucket  = env.s3.bucket;
+// ── S3 / local storage helpers ────────────────────────────────────────────────
 
-  // 1. Push to S3
+const hasS3 = !!(env.s3 && env.s3.bucket && env.s3.region);
+
+// Local fallback: store in <project-root>/uploads/
+const LOCAL_UPLOAD_DIR = path.resolve(__dirname, '../../../../uploads');
+
+async function saveToLocal(buffer, s3Key) {
+  const dest = path.join(LOCAL_UPLOAD_DIR, s3Key.replace(/\//g, '__'));
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(dest, buffer);
+  // Return a URL the phone can reach via the ADB tunnel
+  return `http://127.0.0.1:${env.port}/uploads/${path.basename(dest)}`;
+}
+
+async function saveToS3(buffer, s3Key, userId, originalName) {
+  const { PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+  const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+  const s3 = require('../../config/s3');
+
   await s3.send(new PutObjectCommand({
-    Bucket:      bucket,
+    Bucket:      env.s3.bucket,
     Key:         s3Key,
     Body:        buffer,
     ContentType: 'application/pdf',
     Metadata:    { userId, originalName },
   }));
 
-  // 2. Generate a 7-day pre-signed URL (pdf-service fetches via this)
-  const fileUrl = await getSignedUrl(
+  return getSignedUrl(
     s3,
-    new GetObjectCommand({ Bucket: bucket, Key: s3Key }),
+    new GetObjectCommand({ Bucket: env.s3.bucket, Key: s3Key }),
     { expiresIn: 604800 }
   );
+}
 
-  // 3. Ask pdf-service to analyse pages
-  let totalPages = 0;
-  let pages = [];
+// ── Page analysis (non-fatal) ─────────────────────────────────────────────────
+
+const hasPdfService = !!(env.pdfService && env.pdfService.url);
+
+async function analysePages(fileUrl) {
+  if (!hasPdfService) return { total_pages: 0, pages: [] };
   try {
-    const pdfRes = await axios.post(
+    const axios = require('axios');
+    const res = await axios.post(
       `${env.pdfService.url}/analyse`,
       { fileUrl },
       { timeout: 30_000 }
     );
-    totalPages = pdfRes.data.total_pages || 0;
-    pages      = pdfRes.data.pages       || [];
-  } catch (pdfErr) {
-    // Non-fatal: fall back to unknown page count
-    console.warn('[files] pdf-service unreachable:', pdfErr.message);
+    return { total_pages: res.data.total_pages || 0, pages: res.data.pages || [] };
+  } catch (err) {
+    console.warn('[files] pdf-service unreachable:', err.message);
+    return { total_pages: 0, pages: [] };
+  }
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
+
+/**
+ * Upload a PDF and record it in the DB.
+ * Uses S3 if credentials are configured, falls back to local disk otherwise.
+ */
+async function uploadFile(userId, buffer, originalName) {
+  const fileId = uuidv4();
+  const s3Key  = `uploads/${userId}/${fileId}.pdf`;
+
+  let fileUrl;
+  if (hasS3) {
+    fileUrl = await saveToS3(buffer, s3Key, userId, originalName);
+  } else {
+    console.log('[files] S3 not configured — saving to local disk');
+    fileUrl = await saveToLocal(buffer, s3Key);
   }
 
-  // 4. Persist file record
+  // Analyse pages (non-fatal; returns 0 pages if pdf-service not running)
+  const { total_pages: totalPages, pages } = await analysePages(fileUrl);
+
+  // Persist file record
   const fileRes = await query(
     `INSERT INTO files
        (id, user_id, file_url, s3_key, file_name, file_size_bytes, total_pages)
@@ -59,11 +92,9 @@ async function uploadFile(userId, buffer, originalName) {
   );
   const file = fileRes.rows[0];
 
-  // 5. Persist page records
+  // Persist page records
   if (pages.length > 0) {
-    const vals = pages
-      .map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`)
-      .join(', ');
+    const vals   = pages.map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`).join(', ');
     const params = pages.flatMap((p) => [file.id, p.page_number, p.is_color ?? false]);
     await query(
       `INSERT INTO file_pages (file_id, page_number, is_color) VALUES ${vals}`,
@@ -72,12 +103,12 @@ async function uploadFile(userId, buffer, originalName) {
   }
 
   return {
-    id:          file.id,
-    fileName:    file.file_name,
-    fileUrl:     file.file_url,
-    totalPages:  file.total_pages,
-    uploadedAt:  file.uploaded_at,
-    pages:       pages.map((p) => ({ page_number: p.page_number, is_color: p.is_color ?? false })),
+    id:         file.id,
+    fileName:   file.file_name,
+    fileUrl:    file.file_url,
+    totalPages: file.total_pages,
+    uploadedAt: file.uploaded_at,
+    pages:      pages.map((p) => ({ page_number: p.page_number, is_color: p.is_color ?? false })),
   };
 }
 

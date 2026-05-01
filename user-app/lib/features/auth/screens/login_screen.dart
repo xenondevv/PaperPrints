@@ -11,76 +11,96 @@ class LoginScreen extends ConsumerWidget {
     final auth = ref.watch(authProvider);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(flex: 2),
 
-              // ── Brand ──────────────────────────────────────────────────────
-              Container(
-                width: 96,
-                height: 96,
-                decoration: BoxDecoration(
-                  color: AppColors.primarySurface,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    width: 1.5,
-                  ),
-                ),
-                child: const Center(
-                  child: Text('🖨️', style: TextStyle(fontSize: 48)),
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Paper Prints',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 32,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Print from anywhere, pick up nearby',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 15,
-                  height: 1.4,
+              // ── Brand ────────────────────────────────────────────────
+              Center(
+                child: Column(
+                  children: [
+                    // Icon mark
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF00C9A7), Color(0xFF00A896)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text('🖨️',
+                            style: TextStyle(fontSize: 38)),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Paper Prints',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 30,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Print from anywhere, pick up nearby',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 15,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
               const Spacer(flex: 2),
 
-              // ── Feature pills ──────────────────────────────────────────────
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                alignment: WrapAlignment.center,
+              // ── Feature pills ────────────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
-                  _Pill(icon: Icons.upload_file_outlined, label: 'Upload PDF'),
-                  _Pill(icon: Icons.storefront_outlined, label: 'Find shops'),
-                  _Pill(icon: Icons.qr_code, label: 'Pickup QR'),
+                  _FeaturePill(
+                      icon: Icons.upload_file_outlined, label: 'Upload PDF'),
+                  SizedBox(width: 8),
+                  _FeaturePill(
+                      icon: Icons.storefront_outlined, label: 'Find shops'),
+                  SizedBox(width: 8),
+                  _FeaturePill(
+                      icon: Icons.qr_code_rounded, label: 'QR Pickup'),
                 ],
               ),
 
               const Spacer(flex: 3),
 
-              // ── Error banner ───────────────────────────────────────────────
-              if (auth.error != null) ...[
+              // ── Error ────────────────────────────────────────────────
+              if (auth.error != null)
                 Container(
+                  margin: const EdgeInsets.only(bottom: 14),
                   padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.1),
+                    color: AppColors.error.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
-                    border:
-                        Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppColors.error.withValues(alpha: 0.25)),
                   ),
                   child: Row(children: [
                     const Icon(Icons.error_outline,
@@ -93,10 +113,9 @@ class LoginScreen extends ConsumerWidget {
                     ),
                   ]),
                 ),
-              ],
 
-              // ── Google Sign-In button ──────────────────────────────────────
-              _GoogleButton(
+              // ── Sign in Button ───────────────────────────────────────
+              _GoogleSignInButton(
                 loading: auth.isLoading,
                 onTap: () {
                   ref.read(authProvider.notifier).clearError();
@@ -109,12 +128,11 @@ class LoginScreen extends ConsumerWidget {
                 'By continuing, you agree to our Terms of Service\nand Privacy Policy.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: AppColors.textDisabled,
-                  fontSize: 11,
-                  height: 1.5,
-                ),
+                    color: AppColors.textDisabled,
+                    fontSize: 11,
+                    height: 1.5),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
             ],
           ),
         ),
@@ -123,73 +141,69 @@ class LoginScreen extends ConsumerWidget {
   }
 }
 
-// ─── Google Button ────────────────────────────────────────────────────────────
+// ─── Google Button ─────────────────────────────────────────────────────────────
 
-class _GoogleButton extends StatelessWidget {
+class _GoogleSignInButton extends StatelessWidget {
   final bool loading;
   final VoidCallback onTap;
-  const _GoogleButton({required this.loading, required this.onTap});
+  const _GoogleSignInButton({required this.loading, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: loading ? null : onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        height: 56,
-        decoration: BoxDecoration(
-          color: loading ? AppColors.surface : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: loading
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-        ),
-        child: loading
-            ? const Center(
-                child: SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                      color: AppColors.primary, strokeWidth: 2.5),
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Google "G" logo
-                  _GoogleLogo(),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Continue with Google',
-                    style: TextStyle(
-                      color: Color(0xFF1F1F1F),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      letterSpacing: 0.1,
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: loading ? null : onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          height: 54,
+          decoration: BoxDecoration(
+            color: loading ? AppColors.surface : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+            boxShadow: loading
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
                     ),
+                  ],
+          ),
+          child: loading
+              ? const Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                        color: AppColors.primary, strokeWidth: 2.5),
                   ),
-                ],
-              ),
-      ),
-    );
-  }
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _GoogleLogo(),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Continue with Google',
+                      style: TextStyle(
+                        color: Color(0xFF1F1F1F),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      );
 }
 
 class _GoogleLogo extends StatelessWidget {
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 22,
-      height: 22,
-      child: CustomPaint(painter: _GLogoPainter()),
-    );
-  }
+  Widget build(BuildContext context) => SizedBox(
+        width: 22,
+        height: 22,
+        child: CustomPaint(painter: _GLogoPainter()),
+      );
 }
 
 class _GLogoPainter extends CustomPainter {
@@ -198,24 +212,20 @@ class _GLogoPainter extends CustomPainter {
     final paint = Paint()..style = PaintingStyle.fill;
     final c = Offset(size.width / 2, size.height / 2);
     final r = size.width / 2;
-
-    // Blue arc (top)
     paint.color = const Color(0xFF4285F4);
-    canvas.drawArc(Rect.fromCircle(center: c, radius: r), -1.57, 3.14, true, paint);
-    // Red arc (top-left)
+    canvas.drawArc(
+        Rect.fromCircle(center: c, radius: r), -1.57, 3.14, true, paint);
     paint.color = const Color(0xFFEA4335);
-    canvas.drawArc(Rect.fromCircle(center: c, radius: r), -2.70, 1.14, true, paint);
-    // Yellow arc (bottom-left)
+    canvas.drawArc(
+        Rect.fromCircle(center: c, radius: r), -2.70, 1.14, true, paint);
     paint.color = const Color(0xFFFBBC05);
-    canvas.drawArc(Rect.fromCircle(center: c, radius: r), 1.57, 1.14, true, paint);
-    // Green arc (bottom-right)
+    canvas.drawArc(
+        Rect.fromCircle(center: c, radius: r), 1.57, 1.14, true, paint);
     paint.color = const Color(0xFF34A853);
-    canvas.drawArc(Rect.fromCircle(center: c, radius: r), 0.44, 1.14, true, paint);
-
-    // White inner circle
+    canvas.drawArc(
+        Rect.fromCircle(center: c, radius: r), 0.44, 1.14, true, paint);
     paint.color = Colors.white;
     canvas.drawCircle(c, r * 0.65, paint);
-    // White right cutout for the "G" bar
     canvas.drawRect(
         Rect.fromLTWH(c.dx, c.dy - r * 0.25, r * 1.1, r * 0.5), paint);
   }
@@ -224,29 +234,29 @@ class _GLogoPainter extends CustomPainter {
   bool shouldRepaint(_) => false;
 }
 
-// ─── Feature Pill ─────────────────────────────────────────────────────────────
+// ─── Feature Pill ──────────────────────────────────────────────────────────────
 
-class _Pill extends StatelessWidget {
+class _FeaturePill extends StatelessWidget {
   final IconData icon;
   final String label;
-  const _Pill({required this.icon, required this.label});
+  const _FeaturePill({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) => Container(
         padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.border),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 15, color: AppColors.primary),
-          const SizedBox(width: 6),
+          Icon(icon, size: 14, color: AppColors.primary),
+          const SizedBox(width: 5),
           Text(label,
               style: const TextStyle(
                   color: AppColors.textSecondary,
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w500)),
         ]),
       );

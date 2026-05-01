@@ -33,6 +33,12 @@ class OrderModel {
   final String? qrCodeUrl;
   final DateTime createdAt;
   final List<OrderPage> pages;
+  // Vendor info (may not always be present)
+  final String? shopName;
+  final String? shopPhone;
+  final String? shopAddress;
+  final double? shopLat;
+  final double? shopLng;
 
   const OrderModel({
     required this.id,
@@ -45,6 +51,11 @@ class OrderModel {
     this.qrCodeUrl,
     required this.createdAt,
     this.pages = const [],
+    this.shopName,
+    this.shopPhone,
+    this.shopAddress,
+    this.shopLat,
+    this.shopLng,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> j) => OrderModel(
@@ -61,6 +72,20 @@ class OrderModel {
         pages: (j['pages'] as List<dynamic>? ?? [])
             .map((e) => OrderPage.fromJson(e as Map<String, dynamic>))
             .toList(),
+        // Vendor info — present when backend includes it
+        shopName: j['shop_name'] as String? ?? j['vendor']?['shop_name'] as String?,
+        shopPhone: j['shop_phone'] as String? ?? j['vendor']?['phone'] as String?,
+        shopAddress: j['shop_address'] as String? ?? j['vendor']?['address'] as String?,
+        shopLat: j['shop_lat'] != null
+            ? (j['shop_lat'] as num).toDouble()
+            : j['vendor']?['lat'] != null
+                ? (j['vendor']['lat'] as num).toDouble()
+                : null,
+        shopLng: j['shop_lng'] != null
+            ? (j['shop_lng'] as num).toDouble()
+            : j['vendor']?['lng'] != null
+                ? (j['vendor']['lng'] as num).toDouble()
+                : null,
       );
 
   OrderModel copyWith({
@@ -79,6 +104,11 @@ class OrderModel {
         qrCodeUrl: qrCodeUrl ?? this.qrCodeUrl,
         createdAt: createdAt,
         pages: pages,
+        shopName: shopName,
+        shopPhone: shopPhone,
+        shopAddress: shopAddress,
+        shopLat: shopLat,
+        shopLng: shopLng,
       );
 }
 

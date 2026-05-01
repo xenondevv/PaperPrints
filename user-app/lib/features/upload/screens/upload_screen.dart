@@ -9,6 +9,12 @@ import 'package:paper_prints_user/features/orders/providers/orders_provider.dart
 import 'package:paper_prints_user/features/shops/providers/shops_provider.dart';
 import 'package:paper_prints_user/shared/widgets/shop_card.dart';
 
+// Color mode options matching the screenshot
+enum _ColorMode { colored, bw, autoDetect, manual }
+
+// Orientation options
+enum _Orientation { portrait, landscape }
+
 class UploadScreen extends ConsumerStatefulWidget {
   final String? preselectedVendorId;
   const UploadScreen({super.key, this.preselectedVendorId});
@@ -18,14 +24,22 @@ class UploadScreen extends ConsumerStatefulWidget {
 }
 
 class _UploadScreenState extends ConsumerState<UploadScreen> {
+  // Step 1: Shop
   VendorModel? _selectedVendor;
+
+  // Step 2: File
   PlatformFile? _file;
   Map<String, dynamic>? _fileRecord;
   bool _uploading = false;
   double _uploadProgress = 0;
+
+  // Step 3: Options
   int _copies = 1;
   bool _doubleSided = false;
-  Map<int, String> _pageTypes = {}; // page_number -> 'BW' | 'COLOR'
+  bool _printEntire = true;
+  _ColorMode _colorMode = _ColorMode.autoDetect;
+  _Orientation _orientation = _Orientation.portrait;
+  Map<int, String> _pageTypes = {};
 
   @override
   void initState() {
@@ -93,6 +107,28 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     }
   }
 
+  // Resolve page types based on selected color mode
+  List<Map<String, dynamic>> _resolvedPages() {
+    if (_fileRecord == null) return [];
+    final pages = _fileRecord!['pages'] as List<dynamic>? ?? [];
+    return pages.map((p) {
+      final pMap = p as Map<String, dynamic>;
+      final num = pMap['page_number'] as int;
+      String type;
+      switch (_colorMode) {
+        case _ColorMode.colored:
+          type = PrintType.color;
+        case _ColorMode.bw:
+          type = PrintType.bw;
+        case _ColorMode.autoDetect:
+          type = _pageTypes[num] ?? PrintType.bw;
+        case _ColorMode.manual:
+          type = _pageTypes[num] ?? PrintType.bw;
+      }
+      return {'page_number': num, 'print_type': type};
+    }).toList();
+  }
+
   Future<void> _placeOrder() async {
     if (_selectedVendor == null) {
       _showError('Please select a print shop.');
@@ -103,17 +139,14 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       return;
     }
 
-    final pages = _pageTypes.entries
-        .map((e) => {'page_number': e.key, 'print_type': e.value})
-        .toList();
-
     try {
       final order = await ref.read(ordersProvider.notifier).create({
         'vendor_id': _selectedVendor!.id,
         'file_id': _fileRecord!['id'],
         'copies': _copies,
         'is_double_sided': _doubleSided,
-        'pages': pages,
+        'orientation': _orientation == _Orientation.portrait ? 'PORTRAIT' : 'LANDSCAPE',
+        'pages': _resolvedPages(),
       });
       if (mounted) context.push('/orders/${order.id}');
     } catch (e) {
@@ -121,17 +154,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     }
   }
 
-  double? get _estimatedPrice {
-    if (_fileRecord == null || _selectedVendor?.settings == null) return null;
-    final s = _selectedVendor!.settings!;
-    double total = 0;
-    for (final type in _pageTypes.values) {
-      total += type == PrintType.color ? s.priceColor : s.priceBw;
-    }
-    if (_doubleSided && s.priceDoubleSided != null) {
-      total += s.priceDoubleSided! * (_fileRecord!['total_pages'] as int? ?? 1);
-    }
-    return total * _copies;
+  int get _totalPages {
+    if (_fileRecord == null) return 0;
+    return (_fileRecord!['total_pages'] as int? ?? 0) * _copies;
   }
 
   void _showError(String msg) {
@@ -149,52 +174,85 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   Widget build(BuildContext context) {
     final orderState = ref.watch(ordersProvider);
 
+    // If no file yet, show the shop selector + file picker step
+    if (_file == null) {
+      return _buildFilePickStep();
+    }
+
+    // File selected — show the options screen
+    return _buildOptionsStep(orderState);
+  }
+
+  // ── Step 1: Pick file & shop ───────────────────────────────────────────────
+
+  Widget _buildFilePickStep() {
     return Scaffold(
-      appBar: AppBar(title: const Text('New Print Order')),
+      appBar: AppBar(
+        title: const Text('Standard Documents'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-
-          // Step 1: Shop
-          _stepLabel('1. Print Shop'),
-          if (_selectedVendor != null) ...[
-            ShopCard(shop: _selectedVendor!, onTap: () {}, compact: true),
-            TextButton(
-              onPressed: () => setState(() => _selectedVendor = null),
-              child: const Text('Change shop',
-                  style: TextStyle(color: AppColors.primary)),
-            ),
-          ] else
-            GestureDetector(
-              onTap: () => context.push('/shops'),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: const Row(children: [
-                  Icon(Icons.storefront_outlined, color: AppColors.primary),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text('Select a nearby shop',
-                        style: TextStyle(
-                            color: AppColors.textPrimary, fontSize: 15)),
-                  ),
-                  Icon(Icons.chevron_right, color: AppColors.textDisabled),
-                ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Shop selection
+            const Text('SELECT SHOP',
+                style: TextStyle(
+                    color: AppColors.textTertiary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5)),
+            const SizedBox(height: 8),
+            if (_selectedVendor != null) ...[
+              ShopCard(shop: _selectedVendor!, onTap: () {}, compact: true),
+              TextButton(
+                onPressed: () => setState(() => _selectedVendor = null),
+                child: const Text('Change shop',
+                    style: TextStyle(color: AppColors.primary)),
               ),
-            ),
-          const SizedBox(height: 24),
+            ] else
+              GestureDetector(
+                onTap: () async {
+                  await context.push('/shops');
+                  // After returning, check if a vendor was preselected
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Row(children: [
+                    Icon(Icons.storefront_outlined, color: AppColors.primary),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text('Select a nearby shop',
+                          style: TextStyle(
+                              color: AppColors.textPrimary, fontSize: 15)),
+                    ),
+                    Icon(Icons.chevron_right, color: AppColors.textTertiary),
+                  ]),
+                ),
+              ),
+            const SizedBox(height: 28),
 
-          // Step 2: PDF
-          _stepLabel('2. Upload PDF'),
-          if (_file == null)
+            // File picker
+            const Text('UPLOAD PDF',
+                style: TextStyle(
+                    color: AppColors.textTertiary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5)),
+            const SizedBox(height: 8),
             GestureDetector(
               onTap: _pickFile,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 40),
+                padding: const EdgeInsets.symmetric(vertical: 48),
                 decoration: BoxDecoration(
                   border: Border.all(
                       color: AppColors.primary,
@@ -205,8 +263,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                 ),
                 child: const Column(children: [
                   Icon(Icons.picture_as_pdf_outlined,
-                      color: AppColors.primary, size: 40),
-                  SizedBox(height: 8),
+                      color: AppColors.primary, size: 44),
+                  SizedBox(height: 10),
                   Text('Tap to select PDF',
                       style: TextStyle(
                           color: AppColors.textPrimary,
@@ -218,330 +276,453 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                           color: AppColors.textTertiary, fontSize: 12)),
                 ]),
               ),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(children: [
-                const Icon(Icons.picture_as_pdf,
-                    color: AppColors.primary, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_file!.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: AppColors.textPrimary, fontSize: 14)),
-                      const SizedBox(height: 2),
-                      if (_uploading)
-                        LinearProgressIndicator(
-                          value: _uploadProgress,
-                          backgroundColor: AppColors.border,
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(4),
-                        )
-                      else if (_fileRecord != null)
-                        Text(
-                            '✓ ${_fileRecord!['total_pages']} pages analysed',
-                            style: const TextStyle(
-                                color: AppColors.success, fontSize: 12)),
-                    ],
-                  ),
-                ),
-                if (!_uploading)
-                  IconButton(
-                    icon: const Icon(Icons.refresh,
-                        color: AppColors.textTertiary),
-                    onPressed: _pickFile,
-                  ),
-              ]),
-            ),
-          const SizedBox(height: 24),
-
-          // Step 3: Print Options
-          if (_fileRecord != null) ...[
-            _stepLabel('3. Print Options'),
-            _PrintOptions(
-              pages: (_fileRecord!['pages'] as List<dynamic>? ?? [])
-                  .map((e) => e as Map<String, dynamic>)
-                  .toList(),
-              pageTypes: _pageTypes,
-              copies: _copies,
-              doubleSided: _doubleSided,
-              onPageTypeChange: (page, type) =>
-                  setState(() => _pageTypes[page] = type),
-              onCopiesChange: (v) => setState(() => _copies = v),
-              onDoubleSidedChange: (v) => setState(() => _doubleSided = v),
-            ),
-            const SizedBox(height: 24),
-          ],
-
-          // Price + CTA
-          if (_fileRecord != null && _selectedVendor != null) ...[
-            if (_estimatedPrice != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  'Estimated: ₹${_estimatedPrice!.toStringAsFixed(2)}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 18),
-                ),
-              ),
-            ElevatedButton(
-              onPressed: orderState.isLoading ? null : _placeOrder,
-              child: orderState.isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
-                  : const Text('Place Order'),
             ),
           ],
-        ]),
+        ),
       ),
     );
   }
 
-  Widget _stepLabel(String t) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(t.toUpperCase(),
-            style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5)),
+  // ── Step 2: Options (matches screenshot) ──────────────────────────────────
+
+  Widget _buildOptionsStep(OrdersState orderState) {
+    final totalPages = _fileRecord?['total_pages'] as int? ?? 0;
+
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        title: const Text('Standard Documents'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => setState(() {
+            _file = null;
+            _fileRecord = null;
+          }),
+        ),
+        actions: [
+          // Doc counter pill
+          Container(
+            margin: const EdgeInsets.only(right: 12),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text('Doc 1/1',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Uploading progress ──────────────────────────────
+                  if (_uploading)
+                    LinearProgressIndicator(
+                      value: _uploadProgress,
+                      backgroundColor: AppColors.border,
+                      color: AppColors.primary,
+                    ),
+
+                  const SizedBox(height: 8),
+
+                  // ── Number of Copies ────────────────────────────────
+                  _Section(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Number of Copies',
+                                    style: TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15)),
+                                Text(
+                                  'File 1 ($totalPages pages)',
+                                  style: const TextStyle(
+                                      color: AppColors.textTertiary,
+                                      fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _Stepper(
+                            value: _copies,
+                            onDecrement: _copies > 1
+                                ? () => setState(() => _copies--)
+                                : null,
+                            onIncrement: _copies < 99
+                                ? () => setState(() => _copies++)
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ── Checkboxes ──────────────────────────────────────
+                  _Section(
+                    child: Column(
+                      children: [
+                        // Print entire document
+                        InkWell(
+                          onTap: () =>
+                              setState(() => _printEntire = !_printEntire),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: _printEntire,
+                                  onChanged: (v) => setState(
+                                      () => _printEntire = v ?? true),
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text('Print entire document',
+                                      style: TextStyle(
+                                          color: AppColors.textPrimary,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500)),
+                                ),
+                                GestureDetector(
+                                  onTap: () {},
+                                  child: const Text('Select Pages',
+                                      style: TextStyle(
+                                          color: AppColors.primary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1, color: AppColors.border),
+                        // Double-sided
+                        InkWell(
+                          onTap: () =>
+                              setState(() => _doubleSided = !_doubleSided),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: _doubleSided,
+                                  onChanged: (v) => setState(
+                                      () => _doubleSided = v ?? false),
+                                ),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text('Double-sided',
+                                      style: TextStyle(
+                                          color: AppColors.textPrimary,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ── Select Print Color ───────────────────────────────
+                  _Section(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Select Print Color',
+                              style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15)),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _ColorOptionTile(
+                                  icon: Icons.palette,
+                                  iconColor: Colors.purple,
+                                  title: 'Colored',
+                                  subtitle: 'Print All in Color',
+                                  selected:
+                                      _colorMode == _ColorMode.colored,
+                                  onTap: () => setState(
+                                      () => _colorMode = _ColorMode.colored),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _ColorOptionTile(
+                                  icon: Icons.invert_colors,
+                                  iconColor: Colors.grey.shade700,
+                                  title: 'Black & White',
+                                  subtitle: 'Print All in B&W',
+                                  selected: _colorMode == _ColorMode.bw,
+                                  onTap: () => setState(
+                                      () => _colorMode = _ColorMode.bw),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _ColorOptionTile(
+                                  icon: Icons.auto_fix_high,
+                                  iconColor: AppColors.primary,
+                                  title: 'Auto Detect',
+                                  subtitle: 'Color + B&W',
+                                  selected:
+                                      _colorMode == _ColorMode.autoDetect,
+                                  onTap: () => setState(
+                                      () =>
+                                          _colorMode = _ColorMode.autoDetect),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _ColorOptionTile(
+                                  icon: Icons.tune,
+                                  iconColor: AppColors.textDisabled,
+                                  title: 'Manual Mode',
+                                  subtitle: 'Unavailable',
+                                  selected: false,
+                                  disabled: true,
+                                  onTap: null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ── Select Print Orientation ─────────────────────────
+                  _Section(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Select print orientation',
+                              style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15)),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _OrientationTile(
+                                  icon: Icons.stay_current_portrait,
+                                  title: 'Portrait',
+                                  subtitle: '8.3 x 11.7 inch',
+                                  selected: _orientation ==
+                                      _Orientation.portrait,
+                                  onTap: () => setState(
+                                      () =>
+                                          _orientation = _Orientation.portrait),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _OrientationTile(
+                                  icon: Icons.stay_current_landscape,
+                                  title: 'Landscape',
+                                  subtitle: '11.7 x 8.3 inch',
+                                  selected: _orientation ==
+                                      _Orientation.landscape,
+                                  onTap: () => setState(
+                                      () =>
+                                          _orientation = _Orientation.landscape),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ── Shop selection (compact) ─────────────────────────
+                  if (_selectedVendor == null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: GestureDetector(
+                        onTap: () => context.push('/shops'),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.primarySurface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.primary),
+                          ),
+                          child: const Row(children: [
+                            Icon(Icons.storefront_outlined,
+                                color: AppColors.primary),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text('Select a shop to proceed',
+                                  style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14)),
+                            ),
+                            Icon(Icons.chevron_right,
+                                color: AppColors.primary),
+                          ]),
+                        ),
+                      ),
+                    )
+                  else
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ShopCard(
+                          shop: _selectedVendor!, onTap: () {}, compact: true),
+                    ),
+
+                  const SizedBox(height: 80),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Footer: Total Pages + Proceed ──────────────────────────────
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              color: AppColors.bg,
+              border: Border(top: BorderSide(color: AppColors.border)),
+            ),
+            child: Row(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Total Pages',
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12)),
+                    Text('$_totalPages',
+                        style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 20)),
+                    GestureDetector(
+                      onTap: () {},
+                      child: const Text('View Breakup',
+                          style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 12,
+                              decoration: TextDecoration.underline,
+                              decorationColor: AppColors.primary)),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                SizedBox(
+                  width: 140,
+                  child: ElevatedButton(
+                    onPressed: (orderState.isLoading ||
+                            _selectedVendor == null ||
+                            _uploading)
+                        ? null
+                        : _placeOrder,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(140, 48),
+                    ),
+                    child: orderState.isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Text('Proceed'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Shared section wrapper ────────────────────────────────────────────────────
+
+class _Section extends StatelessWidget {
+  final Widget child;
+  const _Section({required this.child});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        color: AppColors.bg,
+        child: child,
       );
 }
 
-// ─── Print Options widget ─────────────────────────────────────────────────────
-
-class _PrintOptions extends StatelessWidget {
-  final List<Map<String, dynamic>> pages;
-  final Map<int, String> pageTypes;
-  final int copies;
-  final bool doubleSided;
-  final void Function(int page, String type) onPageTypeChange;
-  final void Function(int) onCopiesChange;
-  final void Function(bool) onDoubleSidedChange;
-
-  const _PrintOptions({
-    required this.pages,
-    required this.pageTypes,
-    required this.copies,
-    required this.doubleSided,
-    required this.onPageTypeChange,
-    required this.onCopiesChange,
-    required this.onDoubleSidedChange,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(children: [
-        // Copies
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(children: [
-            const Icon(Icons.content_copy_outlined,
-                color: AppColors.primary, size: 18),
-            const SizedBox(width: 12),
-            const Expanded(
-                child: Text('Copies',
-                    style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600))),
-            _Stepper(
-                value: copies,
-                onDecrement: () => onCopiesChange(copies - 1),
-                onIncrement: () => onCopiesChange(copies + 1)),
-          ]),
-        ),
-        const Divider(color: AppColors.border, height: 1),
-
-        // Double-sided
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(children: [
-            const Icon(Icons.book_outlined,
-                color: AppColors.primary, size: 18),
-            const SizedBox(width: 12),
-            const Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text('Double-sided',
-                      style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600)),
-                  Text('Print on both sides',
-                      style: TextStyle(
-                          color: AppColors.textTertiary, fontSize: 12)),
-                ])),
-            Switch(
-              value: doubleSided,
-              onChanged: onDoubleSidedChange,
-              activeColor: AppColors.primary,
-              trackColor:
-                  WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected)
-                      ? AppColors.primary.withValues(alpha: 0.3)
-                      : AppColors.border),
-            ),
-          ]),
-        ),
-        const Divider(color: AppColors.border, height: 1),
-
-        // Per-page color
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Page Colors',
-                      style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14)),
-                  Row(children: [
-                    _BulkBtn(
-                      label: 'All B&W',
-                      onTap: () {
-                        for (final p in pages) {
-                          onPageTypeChange(
-                              p['page_number'] as int, PrintType.bw);
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 6),
-                    _BulkBtn(
-                      label: 'All Color',
-                      color: true,
-                      onTap: () {
-                        for (final p in pages) {
-                          onPageTypeChange(
-                              p['page_number'] as int, PrintType.color);
-                        }
-                      },
-                    ),
-                  ]),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ...pages.map((p) {
-                final num = p['page_number'] as int;
-                final type = pageTypes[num] ?? PrintType.bw;
-                final isColor = type == PrintType.color;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 6),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceAlt,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                          color: AppColors.border,
-                          borderRadius: BorderRadius.circular(8)),
-                      child: Center(
-                          child: Text('$num',
-                              style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700))),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                          (p['is_color'] as bool? ?? false)
-                              ? '🎨 Color page'
-                              : '⬛ B&W page',
-                          style: const TextStyle(
-                              color: AppColors.textTertiary,
-                              fontSize: 12)),
-                    ),
-                    // Toggle
-                    Container(
-                      decoration: BoxDecoration(
-                          color: AppColors.border,
-                          borderRadius: BorderRadius.circular(8)),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        _TypeBtn(
-                          label: 'B&W',
-                          active: !isColor,
-                          activeColor: const Color(0xFF374151),
-                          onTap: () =>
-                              onPageTypeChange(num, PrintType.bw),
-                        ),
-                        _TypeBtn(
-                          label: 'Color',
-                          active: isColor,
-                          activeColor: AppColors.primary,
-                          onTap: () =>
-                              onPageTypeChange(num, PrintType.color),
-                        ),
-                      ]),
-                    ),
-                  ]),
-                );
-              }),
-            ],
-          ),
-        ),
-      ]),
-    );
-  }
-}
+// ─── Stepper ──────────────────────────────────────────────────────────────────
 
 class _Stepper extends StatelessWidget {
   final int value;
-  final VoidCallback onDecrement, onIncrement;
+  final VoidCallback? onDecrement;
+  final VoidCallback? onIncrement;
   const _Stepper(
       {required this.value,
       required this.onDecrement,
       required this.onIncrement});
 
   @override
-  Widget build(BuildContext context) => Row(children: [
-        _StepBtn(
-            icon: Icons.remove,
-            onTap: value > 1 ? onDecrement : null),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text('$value',
-              style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700)),
+  Widget build(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(8),
         ),
-        _StepBtn(
-            icon: Icons.add,
-            onTap: value < 99 ? onIncrement : null),
-      ]);
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          _StepBtn(icon: Icons.remove, onTap: onDecrement),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Text('$value',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700)),
+          ),
+          _StepBtn(icon: Icons.add, onTap: onIncrement),
+        ]),
+      );
 }
 
 class _StepBtn extends StatelessWidget {
@@ -552,73 +733,143 @@ class _StepBtn extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 32,
-          height: 32,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-            color: AppColors.border,
-            borderRadius: BorderRadius.circular(10),
+            color:
+                onTap != null ? Colors.white24 : Colors.white10,
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon,
-              size: 16,
-              color: onTap != null
-                  ? AppColors.textPrimary
-                  : AppColors.textDisabled),
+              size: 18,
+              color: onTap != null ? Colors.white : Colors.white38),
         ),
       );
 }
 
-class _BulkBtn extends StatelessWidget {
-  final String label;
-  final bool color;
-  final VoidCallback onTap;
-  const _BulkBtn(
-      {required this.label, required this.onTap, this.color = false});
+// ─── Color Option Tile ────────────────────────────────────────────────────────
+
+class _ColorOptionTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final bool disabled;
+  final VoidCallback? onTap;
+
+  const _ColorOptionTile({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    this.disabled = false,
+    this.onTap,
+  });
+
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        onTap: disabled ? null : onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: color ? AppColors.primarySurface : AppColors.border,
-            borderRadius: BorderRadius.circular(8),
+            color: selected ? AppColors.primarySurface : AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color:
+                    selected ? AppColors.primary : AppColors.border,
+                width: selected ? 1.5 : 1),
           ),
-          child: Text(label,
-              style: TextStyle(
-                  color: color
-                      ? AppColors.primaryLight
-                      : AppColors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
+          child: Row(
+            children: [
+              Icon(icon,
+                  size: 22,
+                  color: disabled ? AppColors.textDisabled : iconColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: TextStyle(
+                            color: disabled
+                                ? AppColors.textDisabled
+                                : AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12)),
+                    Text(subtitle,
+                        style: TextStyle(
+                            color: disabled
+                                ? AppColors.textDisabled
+                                : AppColors.textTertiary,
+                            fontSize: 11)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       );
 }
 
-class _TypeBtn extends StatelessWidget {
-  final String label;
-  final bool active;
-  final Color activeColor;
+// ─── Orientation Tile ─────────────────────────────────────────────────────────
+
+class _OrientationTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
   final VoidCallback onTap;
-  const _TypeBtn(
-      {required this.label,
-      required this.active,
-      required this.activeColor,
-      required this.onTap});
+
+  const _OrientationTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: active ? activeColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            color: selected ? AppColors.primarySurface : AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: selected ? AppColors.primary : AppColors.border,
+                width: selected ? 1.5 : 1),
           ),
-          child: Text(label,
-              style: TextStyle(
-                  color: active
-                      ? Colors.white
-                      : AppColors.textTertiary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
+          child: Row(
+            children: [
+              Icon(icon,
+                  size: 24,
+                  color: selected
+                      ? AppColors.primary
+                      : AppColors.textSecondary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12)),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            color: AppColors.textTertiary,
+                            fontSize: 11)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       );
 }
