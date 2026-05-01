@@ -1,3 +1,3 @@
 flask==3.0.0
-pymupdf==1.23.7
+pymupdf
 gunicorn==21.2.0
