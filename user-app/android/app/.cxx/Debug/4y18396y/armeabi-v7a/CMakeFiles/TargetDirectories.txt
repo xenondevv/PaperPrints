@@ -1,0 +1,2 @@
+/home/devansh/.gemini/antigravity/scratch/paper-prints/user-app/android/app/.cxx/Debug/4y18396y/armeabi-v7a/CMakeFiles/edit_cache.dir
+/home/devansh/.gemini/antigravity/scratch/paper-prints/user-app/android/app/.cxx/Debug/4y18396y/armeabi-v7a/CMakeFiles/rebuild_cache.dir
