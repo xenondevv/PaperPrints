@@ -11,12 +11,15 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
-      - run: cd backend && npm ci
-      - run: cd backend && npm run lint
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install
+      - name: Lint
+        run: npm run lint
