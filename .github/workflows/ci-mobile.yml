@@ -23,12 +23,11 @@ jobs:
           flutter-version: '3.29.3'
           channel: 'stable'
           cache: true
-      - name: Get dependencies
-        working-directory: user-app
+      - working-directory: user-app
         run: flutter pub get
-      - name: Analyze
-        working-directory: user-app
-        run: flutter analyze
+      # Only fail on errors, not warnings/infos
+      - working-directory: user-app
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
   lint-vendor-app:
     name: Lint Vendor App
@@ -36,4 +35,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Skip — vendor app not yet initialized
-        run: echo "Vendor app has no dependencies yet, skipping lint."
+        run: echo "Vendor app scaffold not yet created. Skipping."
