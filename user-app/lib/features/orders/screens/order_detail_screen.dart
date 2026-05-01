@@ -1,3 +1,4 @@
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -73,6 +74,89 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   void dispose() {
     SocketService.instance.offOrderEvents();
     super.dispose();
+  }
+
+  void _showQrFullscreen(BuildContext context, String orderId, String bookingCode) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close QR',
+      barrierColor: Colors.black.withValues(alpha: 0.85),
+      transitionDuration: const Duration(milliseconds: 300),
+      transitionBuilder: (ctx, anim, _, child) => FadeTransition(
+        opacity: anim,
+        child: ScaleTransition(
+          scale: Tween(begin: 0.85, end: 1.0).animate(
+              CurvedAnimation(parent: anim, curve: Curves.easeOutBack)),
+          child: child,
+        ),
+      ),
+      pageBuilder: (ctx, _, __) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: GestureDetector(
+            onTap: () => Navigator.of(ctx).pop(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Hero(
+                  tag: 'qr_$orderId',
+                  child: Container(
+                    width: 280,
+                    height: 280,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 30,
+                            offset: const Offset(0, 10))
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: QrImageView(
+                      data: orderId,
+                      version: QrVersions.auto,
+                      eyeStyle: const QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          color: AppColors.textPrimary),
+                      dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: AppColors.textPrimary),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  bookingCode,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 36,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 8),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Show this at the counter',
+                  style: TextStyle(color: Colors.white60, fontSize: 14),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text('Tap anywhere to close',
+                      style: TextStyle(color: Colors.white54, fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _cancel() async {
@@ -179,167 +263,151 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ── Status Banner ──────────────────────────────────────────
-            _StatusBanner(status: order.status),
+            _AnimatedStatusBanner(
+              status: order.status,
+              estimatedTime: order.estimatedTime,
+            ),
             const SizedBox(height: 20),
 
             // ── Order ID + Booking Code ────────────────────────────────
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Order ID',
+                          style: TextStyle(color: AppColors.textTertiary, fontSize: 11)),
+                      Text(order.orderNumber,
+                          style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14)),
+                      const SizedBox(height: 4),
+                      Text('₹${order.totalPrice.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 22)),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text('Booking Code',
+                          style: TextStyle(color: AppColors.textTertiary, fontSize: 11)),
+                      Text(bookingCode,
+                          style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 24,
+                              letterSpacing: 4)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── QR Code (always shown) + Action Buttons ───────────────
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Order ID',
-                        style: TextStyle(
-                            color: AppColors.textTertiary, fontSize: 12)),
-                    Text(order.orderNumber,
-                        style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15)),
-                  ],
+                Expanded(
+                  child: Column(
+                    children: [
+                      _ActionButton(
+                        icon: Icons.directions_outlined,
+                        label: 'Get Direction',
+                        onTap: () => _openMaps(order),
+                      ),
+                      const SizedBox(height: 10),
+                      _ActionButton(
+                        icon: Icons.phone_outlined,
+                        label: 'Call Printshop',
+                        onTap: () => _callShop(order),
+                      ),
+                    ],
+                  ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text('Booking Code',
-                        style: TextStyle(
-                            color: AppColors.textTertiary, fontSize: 12)),
-                    Text(bookingCode,
-                        style: const TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15)),
-                  ],
+                const SizedBox(width: 16),
+                // Local QR code generated from order ID — tap to expand
+                GestureDetector(
+                  onTap: () => _showQrFullscreen(context, order.id, bookingCode),
+                  child: Hero(
+                    tag: 'qr_${order.id}',
+                    child: Container(
+                      width: 110,
+                      height: 110,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2))
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(8),
+                      child: QrImageView(
+                        data: order.id,
+                        version: QrVersions.auto,
+                        eyeStyle: const QrEyeStyle(
+                            eyeShape: QrEyeShape.square,
+                            color: AppColors.textPrimary),
+                        dataModuleStyle: const QrDataModuleStyle(
+                            dataModuleShape: QrDataModuleShape.square,
+                            color: AppColors.textPrimary),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text('Total Amount: ₹${order.totalPrice.toStringAsFixed(2)}',
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 14)),
 
-            const SizedBox(height: 20),
-
-            // ── Action Buttons + QR ────────────────────────────────────
-            if (isReady && order.qrCodeUrl != null)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      children: [
-                        _ActionButton(
-                          icon: Icons.directions_outlined,
-                          label: 'Get Direction',
-                          onTap: () => _openMaps(order),
-                        ),
-                        const SizedBox(height: 10),
-                        _ActionButton(
-                          icon: Icons.phone_outlined,
-                          label: 'Call Printshop',
-                          onTap: () => _callShop(order),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // QR Code
-                  Container(
-                    width: 110,
-                    height: 110,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    padding: const EdgeInsets.all(6),
-                    child: Image.network(
-                      order.qrCodeUrl!,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Center(
-                          child: Icon(Icons.qr_code,
-                              size: 60, color: AppColors.textPrimary)),
-                    ),
-                  ),
-                ],
-              )
-            else
-              Row(
-                children: [
-                  Expanded(
-                    child: _ActionButton(
-                      icon: Icons.directions_outlined,
-                      label: 'Get Direction',
-                      onTap: () => _openMaps(order),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _ActionButton(
-                      icon: Icons.phone_outlined,
-                      label: 'Call Printshop',
-                      onTap: () => _callShop(order),
-                    ),
-                  ),
-                ],
-              ),
-
-            // ETA
-            if (order.estimatedTime != null &&
-                order.status == OrderStatus.accepted) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primarySurface,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(children: [
-                  const Icon(Icons.timer_outlined,
-                      color: AppColors.primary, size: 18),
-                  const SizedBox(width: 8),
-                  Text('Ready in ~${order.estimatedTime} min',
-                      style: const TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600)),
-                ]),
-              ),
-            ],
+            // ETA shown inside banner now
 
             const SizedBox(height: 16),
 
             // ── Status Tracker ─────────────────────────────────────────
-            _StatusTracker(currentStatus: order.status),
-
+            _DarkStatusTracker(currentStatus: order.status),
             const SizedBox(height: 16),
 
             // ── Cancel Button ──────────────────────────────────────────
             if (isPending)
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
                   onPressed: _cancel,
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
-                    backgroundColor: AppColors.surface,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                        borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: const Text('Cancel Order'),
+                  child: const Text('Cancel Order',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
               ),
 
             if (!isTerminal) ...[
-              const SizedBox(height: 20),
-              // ── Delivery section ─────────────────────────────────────
+              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,11 +419,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             fontSize: 15)),
                     const SizedBox(height: 4),
                     const Text(
-                        'We don\'t provide delivery, but we make it easy! You can copy the shop\'s location and address and paste them directly into any delivery app.',
+                        'We don\'t provide delivery, but we make it easy! Copy the shop location or address into any delivery app.',
                         style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 12,
-                            height: 1.4)),
+                            height: 1.5)),
                     const SizedBox(height: 14),
                     Row(
                       children: [
@@ -399,11 +467,353 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   }
 }
 
-// ─── Status Banner ────────────────────────────────────────────────────────────
+// ─── Animated Status Banner ───────────────────────────────────────────────────
+
+class _AnimatedStatusBanner extends StatefulWidget {
+  final String status;
+  final String? estimatedTime;
+  const _AnimatedStatusBanner({required this.status, this.estimatedTime});
+  @override
+  State<_AnimatedStatusBanner> createState() => _AnimatedStatusBannerState();
+}
+
+class _AnimatedStatusBannerState extends State<_AnimatedStatusBanner>
+    with TickerProviderStateMixin {
+  late AnimationController _pulseCtrl;
+  late AnimationController _acceptCtrl;
+  late Animation<double> _pulse;
+  late Animation<double> _scale;
+  late Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400))
+      ..repeat(reverse: true);
+    _pulse = Tween(begin: 0.85, end: 1.15).animate(
+        CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+
+    _acceptCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 700));
+    _scale = Tween(begin: 0.4, end: 1.0).animate(
+        CurvedAnimation(parent: _acceptCtrl, curve: Curves.elasticOut));
+    _fade = Tween(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: _acceptCtrl, curve: Curves.easeIn));
+
+    if (widget.status == OrderStatus.accepted) _acceptCtrl.forward();
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedStatusBanner old) {
+    super.didUpdateWidget(old);
+    if (widget.status == OrderStatus.accepted && old.status != OrderStatus.accepted) {
+      _acceptCtrl.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    _acceptCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isPending = widget.status == OrderStatus.pending;
+    final isAccepted = widget.status == OrderStatus.accepted;
+    final isReady = widget.status == OrderStatus.ready;
+    final isRejected = OrderStatus.isTerminal(widget.status);
+
+    if (isPending) {
+      return _buildPendingBanner();
+    } else if (isAccepted) {
+      return _buildAcceptedBanner();
+    } else if (isReady) {
+      return _buildReadyBanner();
+    } else if (isRejected) {
+      return _buildTerminalBanner();
+    }
+    return _buildGenericBanner();
+  }
+
+  Widget _buildPendingBanner() => Container(
+        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF0F5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFFFB3CC)),
+        ),
+        child: Column(children: [
+          AnimatedBuilder(
+            animation: _pulse,
+            builder: (_, child) => Transform.scale(scale: _pulse.value, child: child),
+            child: Container(
+              width: 64, height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFFFD6E7),
+                border: Border.all(color: const Color(0xFFE91E8C), width: 2),
+              ),
+              child: const Icon(Icons.hourglass_top_rounded,
+                  color: Color(0xFFE91E8C), size: 30),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text('Waiting for Confirmation',
+              style: TextStyle(
+                  color: Color(0xFFAD1457),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18)),
+          const SizedBox(height: 6),
+          const Text(
+              'If confirmation takes longer, we\nrequest you to call the shop directly',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Color(0xFFC2185B), fontSize: 12, height: 1.5)),
+        ]),
+      );
+
+  Widget _buildAcceptedBanner() => FadeTransition(
+        opacity: _fade,
+        child: ScaleTransition(
+          scale: _scale,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+            decoration: BoxDecoration(
+              color: AppColors.primarySurface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.5)),
+            ),
+            child: Column(children: [
+              Container(
+                width: 64, height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary,
+                ),
+                child: const Icon(Icons.check_rounded, color: Colors.white, size: 36),
+              ),
+              const SizedBox(height: 14),
+              const Text('Order Accepted! 🎉',
+                  style: TextStyle(
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18)),
+              const SizedBox(height: 6),
+              if (widget.estimatedTime != null)
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.timer_outlined, color: AppColors.primary, size: 16),
+                    const SizedBox(width: 6),
+                    Text('Ready in ~${widget.estimatedTime} min',
+                        style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14)),
+                  ]),
+                )
+              else
+                const Text('Your order has been accepted by the shop',
+                    style: TextStyle(color: AppColors.primaryDark, fontSize: 12)),
+            ]),
+          ),
+        ),
+      );
+
+  Widget _buildReadyBanner() => Container(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+        decoration: BoxDecoration(
+          color: AppColors.primarySurface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+        ),
+        child: Column(children: [
+          const Icon(Icons.shopping_bag_rounded, color: AppColors.primary, size: 48),
+          const SizedBox(height: 12),
+          const Text('Ready for Pickup! 🛍️',
+              style: TextStyle(
+                  color: AppColors.primaryDark,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18)),
+          const SizedBox(height: 4),
+          const Text('Show the QR code at the counter',
+              style: TextStyle(color: AppColors.primary, fontSize: 12)),
+        ]),
+      );
+
+  Widget _buildTerminalBanner() {
+    final isCancelled = widget.status == OrderStatus.cancelled;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF0F0),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Column(children: [
+        Icon(isCancelled ? Icons.cancel_outlined : Icons.block_rounded,
+            color: AppColors.error, size: 48),
+        const SizedBox(height: 12),
+        Text(isCancelled ? 'Order Cancelled' : 'Order Rejected',
+            style: const TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w800,
+                fontSize: 18)),
+      ]),
+    );
+  }
+
+  Widget _buildGenericBanner() => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const Center(
+          child: Text('Processing...',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+        ),
+      );
+}
+
+// ─── Dark Status Tracker ──────────────────────────────────────────────────────
+
+class _DarkStatusTracker extends StatelessWidget {
+  final String currentStatus;
+  const _DarkStatusTracker({required this.currentStatus});
+
+  static const _steps = [
+    (OrderStatus.pending, 'Order Placed', Icons.receipt_outlined),
+    (OrderStatus.accepted, 'Accepted', Icons.check_circle_outline),
+    (OrderStatus.processing, 'Printing', Icons.print_outlined),
+    (OrderStatus.ready, 'Ready for Pickup', Icons.shopping_bag_outlined),
+    (OrderStatus.completed, 'Picked Up', Icons.sentiment_satisfied_alt_outlined),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final progressSteps = OrderStatus.progressSteps;
+    final curIdx = progressSteps.indexOf(currentStatus);
+    final isTerminal = OrderStatus.isTerminal(currentStatus);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: isTerminal
+          ? Row(children: [
+              const Icon(Icons.info_outline, color: AppColors.error),
+              const SizedBox(width: 10),
+              Text(
+                currentStatus == OrderStatus.rejected
+                    ? 'Rejected by vendor'
+                    : 'Order cancelled',
+                style: const TextStyle(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15),
+              ),
+            ])
+          : Column(
+              children: _steps.asMap().entries.map((e) {
+                final idx = e.key;
+                final step = e.value;
+                final sIdx = progressSteps.indexOf(step.$1);
+                final isDone = sIdx < curIdx;
+                final isActive = sIdx == curIdx;
+                final isLast = idx == _steps.length - 1;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Column(children: [
+                      _DarkStepIcon(isDone: isDone, isActive: isActive, icon: step.$3),
+                      if (!isLast)
+                        Container(
+                            width: 2,
+                            height: 32,
+                            color: isDone
+                                ? AppColors.primary
+                                : const Color(0xFF2A2A3E)),
+                    ]),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4, bottom: 18),
+                        child: Text(step.$2,
+                            style: TextStyle(
+                                color: isActive
+                                    ? AppColors.primary
+                                    : isDone
+                                        ? AppColors.textPrimary
+                                        : AppColors.textDisabled,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14)),
+                      ),
+                    ),
+                    if (isDone)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Icon(Icons.check_circle,
+                            size: 16, color: AppColors.primary),
+                      ),
+                  ],
+                );
+              }).toList(),
+            ),
+    );
+  }
+}
+
+class _DarkStepIcon extends StatelessWidget {
+  final bool isDone, isActive;
+  final IconData icon;
+  const _DarkStepIcon({required this.isDone, required this.isActive, required this.icon});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 28, height: 28,
+        decoration: BoxDecoration(
+          color: isDone
+              ? AppColors.primary
+              : isActive
+                  ? AppColors.primarySurface
+                  : AppColors.surface,
+          shape: BoxShape.circle,
+          border: isActive
+              ? Border.all(color: AppColors.primary, width: 2)
+              : Border.all(color: AppColors.border),
+        ),
+        child: Icon(
+          isDone ? Icons.check : icon,
+          size: 14,
+          color: isDone
+              ? Colors.white
+              : isActive
+                  ? AppColors.primary
+                  : AppColors.textDisabled,
+        ),
+      );
+}
+
+// ─── Status Banner (legacy — kept for reference) ──────────────────────────────
 
 class _StatusBanner extends StatelessWidget {
   final String status;
   const _StatusBanner({required this.status});
+
 
   String get _title => switch (status) {
         OrderStatus.pending => 'Waiting for Confirmation',

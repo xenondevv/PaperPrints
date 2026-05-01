@@ -2,11 +2,11 @@ class AppConstants {
   // API
   static const apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:3000/api',
+    defaultValue: 'http://172.16.34.242:3000/api',
   );
   static const socketUrl = String.fromEnvironment(
     'SOCKET_URL',
-    defaultValue: 'http://127.0.0.1:3000',
+    defaultValue: 'http://172.16.34.242:3000',
   );
 
   // Storage keys

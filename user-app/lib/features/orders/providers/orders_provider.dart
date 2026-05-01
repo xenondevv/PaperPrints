@@ -15,10 +15,10 @@ class OrderPage {
       required this.isColor});
 
   factory OrderPage.fromJson(Map<String, dynamic> j) => OrderPage(
-        pageNumber: j['page_number'] as int,
-        printType: j['print_type'] as String? ??
-            (j['is_color'] == true ? PrintType.color : PrintType.bw),
-        isColor: j['is_color'] as bool? ?? false,
+        pageNumber: ((j['pageNumber'] ?? j['page_number']) as num?)?.toInt() ?? 0,
+        printType: (j['printType'] ?? j['print_type']) as String? ??
+            (j['isColor'] == true || j['is_color'] == true ? PrintType.color : PrintType.bw),
+        isColor: (j['isColor'] ?? j['is_color']) as bool? ?? false,
       );
 }
 
@@ -60,14 +60,16 @@ class OrderModel {
 
   factory OrderModel.fromJson(Map<String, dynamic> j) => OrderModel(
         id: j['id'] as String,
-        orderNumber: j['order_number'] as String,
-        status: j['status'] as String,
-        copies: j['copies'] as int? ?? 1,
-        isDoubleSided: j['is_double_sided'] as bool? ?? false,
-        totalPrice: (j['total_price'] as num?)?.toDouble() ?? 0,
-        estimatedTime: j['estimated_time'] as String?,
-        qrCodeUrl: j['qr_code_url'] as String?,
-        createdAt: DateTime.tryParse(j['created_at'] as String? ?? '') ??
+        // Backend formatOrder() returns camelCase; fall back to snake_case for raw DB rows
+        orderNumber: (j['orderNumber'] ?? j['order_number']) as String? ?? '',
+        status: (j['status'] as String? ?? 'PENDING').toUpperCase(),
+        copies: (j['copies'] as num?)?.toInt() ?? 1,
+        isDoubleSided: (j['isDoubleSided'] ?? j['is_double_sided']) as bool? ?? false,
+        totalPrice: ((j['totalPrice'] ?? j['total_price']) as num?)?.toDouble() ?? 0,
+        estimatedTime: (j['estimatedTime'] ?? j['estimated_time']) as String?,
+        qrCodeUrl: (j['qrCodeUrl'] ?? j['qr_code_url']) as String?,
+        createdAt: DateTime.tryParse(
+                ((j['createdAt'] ?? j['created_at']) as String? ?? '')) ??
             DateTime.now(),
         pages: (j['pages'] as List<dynamic>? ?? [])
             .map((e) => OrderPage.fromJson(e as Map<String, dynamic>))
