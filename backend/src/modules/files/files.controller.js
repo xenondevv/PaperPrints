@@ -7,7 +7,7 @@ async function handleUpload(req, res, next) {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
-    const file = await uploadFile(req.user.id, req.file.buffer, req.file.originalname);
+    const file = await uploadFile(req.user.id, req.file.buffer, req.file.originalname, req.file.mimetype);
     res.status(201).json({ file });
   } catch (err) {
     next(err);

@@ -30,7 +30,7 @@ async function saveToS3(buffer, s3Key, userId, originalName) {
     Bucket:      env.s3.bucket,
     Key:         s3Key,
     Body:        buffer,
-    ContentType: 'application/pdf',
+    ContentType: file.mimetype || 'application/octet-stream',
     Metadata:    { userId, originalName },
   }));
 
@@ -67,9 +67,10 @@ async function analysePages(fileUrl) {
  * Upload a PDF and record it in the DB.
  * Uses S3 if credentials are configured, falls back to local disk otherwise.
  */
-async function uploadFile(userId, buffer, originalName) {
-  const fileId = uuidv4();
-  const s3Key  = `uploads/${userId}/${fileId}.pdf`;
+async function uploadFile(userId, buffer, originalName, mimetype) {
+  const fileId  = uuidv4();
+  const ext     = path.extname(originalName) || '.bin';
+  const s3Key   = `uploads/${userId}/${fileId}${ext}`;
 
   let fileUrl;
   if (hasS3) {

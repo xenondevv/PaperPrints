@@ -1,18 +1,36 @@
 'use strict';
 
 const multer = require('multer');
-const path   = require('path');
 
 const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
-const storage = multer.memoryStorage(); // keep file in RAM; we push straight to S3
+const ACCEPTED_MIMES = new Set([
+  // PDF
+  'application/pdf',
+  // Images
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/tiff', 'image/bmp',
+  // Office docs
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  // OpenDocument
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'application/vnd.oasis.opendocument.presentation',
+  // Text / CSV
+  'text/plain', 'text/csv',
+]);
+
+const storage = multer.memoryStorage();
 
 const fileFilter = (_req, file, cb) => {
-  const ext = path.extname(file.originalname).toLowerCase();
-  if (ext === '.pdf' && file.mimetype === 'application/pdf') {
+  if (ACCEPTED_MIMES.has(file.mimetype) || file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
-    const err = new Error('Only PDF files are accepted');
+    const err = new Error(`File type "${file.mimetype}" is not supported`);
     err.status = 400;
     cb(err, false);
   }
