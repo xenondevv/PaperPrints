@@ -7,7 +7,6 @@ class ApiClient {
   static final ApiClient instance = ApiClient._();
 
   final _storage = const FlutterSecureStorage();
-
   late final Dio _dio = Dio(
     BaseOptions(
       baseUrl: AppConstants.apiBaseUrl,
