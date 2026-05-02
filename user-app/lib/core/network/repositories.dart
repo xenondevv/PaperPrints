@@ -87,3 +87,26 @@ class UsersRepository {
     return res.data['user'] as Map<String, dynamic>;
   }
 }
+
+class PaymentsRepository {
+  final _dio = ApiClient.instance.dio;
+
+  /// Create a Cashfree payment session for an order
+  Future<Map<String, dynamic>> createSession(String orderId) async {
+    final res = await _dio.post('/payments/create-session', data: {'order_id': orderId});
+    return res.data['payment'] as Map<String, dynamic>;
+  }
+
+  /// Verify payment status with Cashfree
+  Future<Map<String, dynamic>> verifyPayment(String orderId) async {
+    final res = await _dio.post('/payments/verify', data: {'order_id': orderId});
+    return res.data['payment'] as Map<String, dynamic>;
+  }
+
+  /// Get payment details for an order
+  Future<Map<String, dynamic>> getPayment(String orderId) async {
+    final res = await _dio.get('/payments/$orderId');
+    return res.data['payment'] as Map<String, dynamic>;
+  }
+}
+

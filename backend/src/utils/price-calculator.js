@@ -13,22 +13,29 @@
 function calculatePrice({ pages, copies, isDoubleSided, settings }) {
   let pageTotal = 0;
 
+  const priceBw = parseFloat(settings.price_bw) || 0;
+  const priceColor = parseFloat(settings.price_color) || 0;
+  const priceDoubleSided = parseFloat(settings.price_double_sided) || 0;
+
   for (const page of pages) {
     if (page.print_type === 'COLOR') {
-      pageTotal += settings.price_color;
+      pageTotal += priceColor;
     } else {
-      pageTotal += settings.price_bw;
+      pageTotal += priceBw;
     }
   }
 
   // Double-sided surcharge per physical sheet (ceil pages / 2)
-  if (isDoubleSided && settings.price_double_sided) {
+  if (isDoubleSided && priceDoubleSided > 0) {
     const sheets = Math.ceil(pages.length / 2);
-    pageTotal += sheets * settings.price_double_sided;
+    pageTotal += sheets * priceDoubleSided;
   }
 
   const total = pageTotal * copies;
-  return Math.round(total * 100) / 100;
+  const finalPrice = Math.round(total * 100) / 100;
+  
+  // Ensure minimum price of 1 INR for Cashfree to prevent 400 Bad Request
+  return Math.max(finalPrice, 1);
 }
 
 module.exports = { calculatePrice };
