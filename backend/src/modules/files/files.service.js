@@ -21,7 +21,7 @@ async function saveToLocal(buffer, s3Key) {
   return `http://127.0.0.1:${env.port}/uploads/${path.basename(dest)}`;
 }
 
-async function saveToS3(buffer, s3Key, userId, originalName) {
+async function saveToS3(buffer, s3Key, userId, originalName, mimetype) {
   const { PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
   const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
   const s3 = require('../../config/s3');
@@ -30,7 +30,7 @@ async function saveToS3(buffer, s3Key, userId, originalName) {
     Bucket:      env.s3.bucket,
     Key:         s3Key,
     Body:        buffer,
-    ContentType: file.mimetype || 'application/octet-stream',
+    ContentType: mimetype || 'application/octet-stream',
     Metadata:    { userId, originalName },
   }));
 
@@ -74,7 +74,7 @@ async function uploadFile(userId, buffer, originalName, mimetype) {
 
   let fileUrl;
   if (hasS3) {
-    fileUrl = await saveToS3(buffer, s3Key, userId, originalName);
+    fileUrl = await saveToS3(buffer, s3Key, userId, originalName, mimetype);
   } else {
     console.log('[files] S3 not configured — saving to local disk');
     fileUrl = await saveToLocal(buffer, s3Key);

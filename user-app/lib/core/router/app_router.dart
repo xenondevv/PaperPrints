@@ -8,6 +8,7 @@ import 'package:paper_prints_user/features/shops/screens/shop_detail_screen.dart
 import 'package:paper_prints_user/features/upload/screens/upload_screen.dart';
 import 'package:paper_prints_user/features/orders/screens/order_history_screen.dart';
 import 'package:paper_prints_user/features/orders/screens/order_detail_screen.dart';
+import 'package:paper_prints_user/features/orders/screens/payment_failed_screen.dart';
 import 'package:paper_prints_user/features/profile/screens/profile_screen.dart';
 import 'package:paper_prints_user/shared/widgets/main_shell.dart';
 
@@ -54,6 +55,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/orders/:id',
         builder: (_, state) =>
             OrderDetailScreen(orderId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/payment-failed',
+        builder: (_, state) =>
+            PaymentFailedScreen(errorMessage: state.extra as String?),
       ),
     ],
   );

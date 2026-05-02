@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pdfx/pdfx.dart';
+import 'package:dio/dio.dart';
 import 'package:paper_prints_user/core/constants/app_constants.dart';
 import 'package:paper_prints_user/core/network/repositories.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
@@ -12,6 +13,7 @@ import 'package:paper_prints_user/features/orders/providers/orders_provider.dart
 import 'package:paper_prints_user/features/shops/providers/shops_provider.dart';
 import 'package:paper_prints_user/features/upload/screens/pdf_viewer_screen.dart';
 import 'package:paper_prints_user/shared/widgets/shop_card.dart';
+import 'package:paper_prints_user/core/services/payment_service.dart';
 
 // Color mode options matching the screenshot
 enum _ColorMode { colored, bw, autoDetect, manual }
@@ -53,15 +55,16 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
   // Demo vendor (hardcoded — no network call)
   static final _demoVendor = VendorModel(
-    id: '46670bea-7d2b-42be-9997-7be11044376f', // seeded QuickPrint
-    shopName: 'QuickPrint (Demo)',
-    address: 'Local demo shop',
-    phone: null,
+    id: 'cc7b3e49-f76e-4d61-9491-4f797ea6dee0', // ABES Print Shop (seeded)
+    shopName: 'ABES Print Shop',
+    address: 'ABES Engineering College, Ghaziabad, UP',
+    phone: '9999999999',
     isOpen: true,
     distanceKm: 0,
     settings: const VendorSettings(
-      priceBw: 2,
-      priceColor: 10,
+      priceBw: 1,
+      priceColor: 5,
+      priceDoubleSided: 0.5,
       capabilities: ['BW', 'COLOR'],
     ),
   );
@@ -231,7 +234,13 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         }
       });
     } catch (e) {
-      _showError('Upload failed for ${file.name}.');
+      String errMsg = 'Upload failed for ${file.name}.';
+      if (e is DioException) {
+        errMsg = 'Upload failed: ${e.response?.data ?? e.message}';
+      } else {
+        errMsg = 'Upload failed: $e';
+      }
+      _showError(errMsg);
       setState(() => _fileRecords[fileIdx] = null);
     } finally {
       setState(() => _uploadingCount--);
@@ -266,6 +275,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     }).toList();
   }
 
+  bool _paymentInProgress = false;
+
   Future<void> _placeOrder() async {
     if (_selectedVendor == null) {
       _showError('Please select a print shop.');
@@ -281,6 +292,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       }
       debugPrint('Placing order with records: ${uploadedRecords.map((r) => r!['id']).toList()}');
       final fileIds = uploadedRecords.map((r) => r!['id'].toString()).toList();
+
+      // Step 1: Create the order on the backend
       final order = await ref.read(ordersProvider.notifier).create({
         'vendor_id': _selectedVendor!.id,
         'file_id': fileIds.first,
@@ -291,10 +304,36 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
             _orientation == _Orientation.portrait ? 'PORTRAIT' : 'LANDSCAPE',
         'pages': _resolvedPages(),
       });
-      if (mounted) context.push('/orders/${order.id}');
+
+      // Step 2: Start Cashfree payment
+      setState(() => _paymentInProgress = true);
+
+      await PaymentService.instance.startPayment(
+        orderId: order.id,
+        onSuccess: (result) {
+          if (!mounted) return;
+          setState(() => _paymentInProgress = false);
+          debugPrint('Payment successful: $result');
+
+          // Navigate directly to the Order Details screen where it will show Waiting for Confirmation
+          context.go('/orders/${order.id}');
+        },
+        onError: (error) {
+          if (!mounted) return;
+          setState(() => _paymentInProgress = false);
+          debugPrint('Payment failed: $error');
+          // Navigate to failed screen
+          context.push('/payment-failed', extra: error?.toString());
+        },
+      );
     } catch (e) {
+      setState(() => _paymentInProgress = false);
       debugPrint('Place order error: $e');
-      _showError('Failed to place order: ${e.toString().split('\n').first}');
+      if (e is DioException) {
+        _showError('Failed to place order: ${e.response?.data}');
+      } else {
+        _showError('Failed to place order: ${e.toString().split('\n').first}');
+      }
     }
   }
 
@@ -1186,23 +1225,27 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                 ),
                 const Spacer(),
                 SizedBox(
-                  width: 140,
-                  child: ElevatedButton(
+                  width: 160,
+                  child: ElevatedButton.icon(
                     onPressed: (orderState.isLoading ||
+                            _paymentInProgress ||
                             _selectedVendor == null ||
                             _uploadingCount > 0)
                         ? null
                         : _placeOrder,
                     style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(140, 48),
+                      minimumSize: const Size(160, 48),
                     ),
-                    child: orderState.isLoading
+                    icon: (orderState.isLoading || _paymentInProgress)
                         ? const SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
                                 color: Colors.white, strokeWidth: 2))
-                        : const Text('Proceed'),
+                        : const Icon(Icons.payment, size: 18),
+                    label: (orderState.isLoading || _paymentInProgress)
+                        ? const Text('Processing...')
+                        : Text('Pay ${_calcTotalPrice()}'),
                   ),
                 ),
               ],
