@@ -3,6 +3,7 @@
 const { query }               = require('../../config/db');
 const { generateOrderNumber } = require('../../utils/order-number');
 const { calculatePrice }      = require('../../utils/price-calculator');
+const { emitNewOrderToVendor } = require('../../sockets/order.socket');
 
 // ── Create order ──────────────────────────────────────────────────────────────
 
@@ -72,6 +73,18 @@ async function createOrder(userId, { vendor_id, file_id, copies, is_double_sided
       `INSERT INTO order_pages (order_id, page_number, print_type) VALUES ${pageValues}`,
       pageParams
     );
+  }
+
+  // Notify the vendor in real time
+  try {
+    const vendorUserRes = await query(
+      `SELECT user_id FROM vendors WHERE id = $1`, [vendor_id]
+    );
+    if (vendorUserRes.rows[0]) {
+      emitNewOrderToVendor(vendorUserRes.rows[0].user_id, formatOrder(order, pages || []));
+    }
+  } catch (e) {
+    console.error('[socket] Failed to notify vendor:', e.message);
   }
 
   return formatOrder(order, pages || []);

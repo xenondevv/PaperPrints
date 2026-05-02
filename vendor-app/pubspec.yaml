@@ -1,0 +1,53 @@
+name: paper_prints_vendor
+description: "Paper Prints — Vendor Mobile App"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Firebase & Google Auth
+  firebase_core: ^3.13.0
+  firebase_auth: ^5.5.0
+  google_sign_in: ^6.2.2
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # State management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # HTTP
+  dio: ^5.8.0+1
+
+  # Local storage
+  shared_preferences: ^2.5.3
+  flutter_secure_storage: ^9.2.4
+
+  # Real-time
+  socket_io_client: ^2.0.3+1
+
+  # Hardware
+  mobile_scanner: ^6.0.0
+
+  # UI utilities
+  cached_network_image: ^3.4.1
+  google_fonts: ^6.2.1
+  intl: ^0.20.2
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.14
+  riverpod_generator: ^2.6.5
+
+flutter:
+  uses-material-design: true

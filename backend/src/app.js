@@ -11,8 +11,9 @@ const { errorHandler } = require('./middleware/error.middleware');
 const authRoutes    = require('./modules/auth/auth.routes');
 const usersRoutes   = require('./modules/users/users.routes');
 const vendorsRoutes = require('./modules/vendors/vendors.routes');
-const ordersRoutes  = require('./modules/orders/orders.routes');
-const filesRoutes   = require('./modules/files/files.routes');
+const ordersRoutes        = require('./modules/orders/orders.routes');
+const vendorOrdersRoutes  = require('./modules/orders/vendor-orders.routes');
+const filesRoutes         = require('./modules/files/files.routes');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api/auth',    authRoutes);
 app.use('/api/users',   usersRoutes);
 app.use('/api/vendors', vendorsRoutes);
 app.use('/api/orders',  ordersRoutes);
+app.use('/api/vendor/orders', vendorOrdersRoutes);
 app.use('/api/files',   filesRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────

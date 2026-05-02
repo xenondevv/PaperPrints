@@ -51,10 +51,20 @@ function emitOrderReady(userId, orderId, qrCode) {
   _io?.to(`user:${userId}`).emit('order_ready', { orderId, qrCode });
 }
 
+/**
+ * Notify a vendor that a new order has been placed at their shop.
+ * @param {string} vendorUserId  The vendor's user_id (NOT vendor.id)
+ * @param {object} order         The formatted order object
+ */
+function emitNewOrderToVendor(vendorUserId, order) {
+  _io?.to(`vendor:${vendorUserId}`).emit('new_order', { order });
+}
+
 module.exports = {
   setupOrderSockets,
   emitOrderAccepted,
   emitOrderRejected,
   emitStatusUpdate,
   emitOrderReady,
+  emitNewOrderToVendor,
 };
