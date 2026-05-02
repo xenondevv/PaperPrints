@@ -80,13 +80,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         : 'U';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: const Color(0xFFF2F3F5),
       body: RefreshIndicator(
         color: AppColors.primary,
         onRefresh: _init,
         child: CustomScrollView(
           slivers: [
-            // ── Top section (white card) ──────────────────────────────
+            // ── Top white section ─────────────────────────────────────────
             SliverToBoxAdapter(
               child: Container(
                 color: Colors.white,
@@ -95,36 +95,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header row
+                      // ── Header row ──────────────────────────────────────
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                         child: Row(
                           children: [
-                            // Location block
+                            // Location icon
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: AppColors.primarySurface,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.location_on,
+                                  color: AppColors.primary, size: 18),
+                            ),
+                            const SizedBox(width: 10),
+                            // Location text
                             Expanded(
                               child: GestureDetector(
                                 onTap: _init,
                                 child: Row(
                                   children: [
-                                    Container(
-                                      width: 36,
-                                      height: 36,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primarySurface,
-                                        borderRadius:
-                                            BorderRadius.circular(10),
-                                      ),
-                                      child: const Icon(
-                                          Icons.location_on,
-                                          color: AppColors.primary,
-                                          size: 18),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
+                                    Flexible(
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
+                                          const Text(
+                                            'WE ARE AT',
+                                            style: TextStyle(
+                                                color: AppColors.textTertiary,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                letterSpacing: 0.8),
+                                          ),
+                                          const SizedBox(height: 1),
                                           Row(children: [
                                             Flexible(
                                               child: Text(
@@ -133,28 +140,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                 overflow:
                                                     TextOverflow.ellipsis,
                                                 style: const TextStyle(
-                                                    color:
-                                                        AppColors.textPrimary,
+                                                    color: Colors.black,
                                                     fontWeight:
                                                         FontWeight.w700,
-                                                    fontSize: 14),
+                                                    fontSize: 15),
                                               ),
                                             ),
-                                            const SizedBox(width: 3),
+                                            const SizedBox(width: 2),
                                             const Icon(
                                                 Icons.keyboard_arrow_down,
                                                 size: 16,
-                                                color:
-                                                    AppColors.textSecondary),
+                                                color: AppColors.primary),
                                           ]),
-                                          Text(
-                                            _locationLine2,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                                color: AppColors.textTertiary,
-                                                fontSize: 12),
-                                          ),
                                         ],
                                       ),
                                     ),
@@ -169,12 +166,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary,
+                                  color: Colors.black,
                                   shape: BoxShape.circle,
+                                  border: Border.all(
+                                      color: AppColors.primary, width: 2),
                                 ),
                                 child: user?.photoUrl != null
                                     ? ClipOval(
-                                        child: Image.network(user!.photoUrl!,
+                                        child: Image.network(
+                                            user!.photoUrl!,
                                             fit: BoxFit.cover))
                                     : Center(
                                         child: Text(initial,
@@ -189,27 +189,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 24),
 
-                      // Banner carousel
+                      // ── Banner carousel ─────────────────────────────────
                       SizedBox(
-                        height: 148,
+                        height: 170,
                         child: PageView.builder(
                           controller: _pageCtrl,
                           itemCount: _banners.length,
                           onPageChanged: (i) =>
                               setState(() => _bannerPage = i),
                           itemBuilder: (_, i) => Padding(
-                            padding: EdgeInsets.only(
-                              left: i == 0 ? 20 : 8,
-                              right: i == _banners.length - 1 ? 20 : 8,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: _BannerCard(data: _banners[i]),
                           ),
                         ),
                       ),
 
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
 
                       // Dots
                       Row(
@@ -220,36 +217,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             duration: const Duration(milliseconds: 250),
                             margin:
                                 const EdgeInsets.symmetric(horizontal: 3),
-                            width: _bannerPage == i ? 18 : 6,
-                            height: 6,
+                            width: _bannerPage == i ? 20 : 7,
+                            height: 7,
                             decoration: BoxDecoration(
                               color: _bannerPage == i
                                   ? AppColors.primary
                                   : AppColors.border,
-                              borderRadius: BorderRadius.circular(3),
+                              borderRadius: BorderRadius.circular(4),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
               ),
             ),
 
-            // ── Shops Around You ───────────────────────────────────────
+            // Soft fade from white → grey background
+            SliverToBoxAdapter(
+              child: Container(
+                height: 8,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.white, Color(0xFFF2F3F5)],
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Shops Around You ──────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('Shops Around You',
                         style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16)),
+                            color: Colors.black,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 17)),
                     GestureDetector(
                       onTap: () => context.push('/shops'),
                       child: Container(
@@ -273,7 +284,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             SliverToBoxAdapter(
               child: SizedBox(
-                height: 120,
+                height: 100,
                 child: shopsState.isLoading
                     ? const Center(
                         child: SizedBox(
@@ -285,11 +296,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       )
                     : shopsState.shops.isEmpty
-                        ? const Center(
-                            child: Text('No shops found nearby',
-                                style: TextStyle(
-                                    color: AppColors.textTertiary,
-                                    fontSize: 13)),
+                        ? Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primarySurface,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
+                                        Icons.store_mall_directory_outlined,
+                                        color: AppColors.primary,
+                                        size: 22),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text('No shops found nearby',
+                                            style: TextStyle(
+                                                color: Colors.black,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13)),
+                                        SizedBox(height: 2),
+                                        Text(
+                                            'Try expanding your search area',
+                                            style: TextStyle(
+                                                color: AppColors.textTertiary,
+                                                fontSize: 11)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           )
                         : ListView.separated(
                             scrollDirection: Axis.horizontal,
@@ -307,20 +361,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
 
-            // ── Select Category ────────────────────────────────────────
+            // ── Select Category ───────────────────────────────────────────
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
+                padding: EdgeInsets.fromLTRB(20, 24, 20, 16),
                 child: Text('Select Category',
                     style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16)),
+                        color: Colors.black,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17)),
               ),
             ),
 
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
               sliver: SliverGrid(
                 gridDelegate:
                     const SliverGridDelegateWithFixedCrossAxisCount(
@@ -353,43 +407,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 class _BannerData {
-  final String title, subtitle, tag;
-  final Color from, to;
-  final IconData icon;
+  final String title, subtitle;
+  final List<String> chips;
+  final String image;
   const _BannerData({
     required this.title,
     required this.subtitle,
-    required this.tag,
-    required this.from,
-    required this.to,
-    required this.icon,
+    required this.chips,
+    required this.image,
   });
 }
 
 const _banners = [
   _BannerData(
-    title: 'Skip the queue,\nSave your time!',
-    subtitle: 'Order online, pick up when ready!',
-    tag: 'Fast · Easy · Smart',
-    from: Color(0xFF0B7DDA),
-    to: Color(0xFF1565C0),
-    icon: Icons.bolt_rounded,
+    title: 'Skip the Queue,\nSave Your Time!',
+    subtitle: 'Order online, pick up when ready.',
+    chips: ['⚡ Fast', '⭐ Easy', '🤖 Smart'],
+    image: 'assets/banners/skip_queue.png',
   ),
   _BannerData(
-    title: 'Print from\nanywhere!',
-    subtitle: 'Upload PDF, choose a nearby shop',
-    tag: 'No wait · No hassle',
-    from: Color(0xFF00897B),
-    to: Color(0xFF00695C),
-    icon: Icons.cloud_upload_outlined,
+    title: 'Print from\nAnywhere!',
+    subtitle: 'Upload any file, choose a nearby shop.',
+    chips: ['📄 PDF', '🖼 Images', '📊 Docs'],
+    image: 'assets/banners/print_anywhere.png',
   ),
   _BannerData(
-    title: 'Track live &\npick up easy',
-    subtitle: 'Real-time updates on your order',
-    tag: 'QR pickup code ready',
-    from: Color(0xFF5E35B1),
-    to: Color(0xFF4527A0),
-    icon: Icons.qr_code_rounded,
+    title: 'Track Live &\nPickup Easy',
+    subtitle: 'Get notified when your order is ready.',
+    chips: ['🔔 Alerts', '📲 QR Code', '✅ Done'],
+    image: 'assets/banners/track_pickup.png',
   ),
 ];
 
@@ -401,12 +447,12 @@ class _CategoryData {
 }
 
 const _categories = [
-  _CategoryData('Standard\nDocuments', Icons.description_outlined,
+  _CategoryData('Standard\nDoc', Icons.description_outlined,
       available: true),
   _CategoryData('Paper\nPrinting', Icons.print_outlined),
-  _CategoryData('Spiral /\nBinding', Icons.menu_book_outlined),
+  _CategoryData('Spiral\nBinding', Icons.menu_book_outlined),
   _CategoryData('Lamination', Icons.layers_outlined),
-  _CategoryData('Photograph\nPrinting', Icons.photo_outlined),
+  _CategoryData('Photo\nPrinting', Icons.photo_outlined),
   _CategoryData('Framed\nPhoto', Icons.crop_outlined),
 ];
 
@@ -417,18 +463,29 @@ class _BannerCard extends StatelessWidget {
   const _BannerCard({required this.data});
 
   @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-              colors: [data.from, data.to],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
+  Widget build(BuildContext context) => ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Expanded(
+            // Background image
+            Image.asset(data.image, fit: BoxFit.cover),
+            // Dark overlay for readability
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.72),
+                    Colors.black.withValues(alpha: 0.25),
+                  ],
+                ),
+              ),
+            ),
+            // Text content
+            Padding(
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -437,32 +494,36 @@ class _BannerCard extends StatelessWidget {
                       style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,
-                          fontSize: 18,
+                          fontSize: 19,
                           height: 1.2)),
                   const SizedBox(height: 6),
                   Text(data.subtitle,
                       style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.75),
-                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 11,
                           height: 1.3)),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(data.tag,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: data.chips
+                        .map((c) => Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(c,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 10)),
+                            ))
+                        .toList(),
                   ),
                 ],
               ),
             ),
-            Icon(data.icon, size: 52, color: Colors.white24),
           ],
         ),
       );
@@ -494,7 +555,7 @@ class _ShopChip extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      color: AppColors.textPrimary,
+                      color: Colors.black,
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
                       height: 1.3)),
@@ -540,71 +601,80 @@ class _CategoryCard extends StatelessWidget {
   const _CategoryCard({required this.data, this.onTap});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: data.available ? const Color(0xFFFFF9E6) : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: data.available
-                  ? const Color(0xFFFFD600).withValues(alpha: 0.6)
-                  : AppColors.border,
+  Widget build(BuildContext context) {
+    // Active = teal fill, white contents
+    // Inactive = white fill, teal border, black contents
+    final isActive = data.available;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final iconSize = (w * 0.28).clamp(24.0, 32.0);
+          final fontSize = (w * 0.11).clamp(10.0, 12.5);
+
+          return Container(
+            decoration: BoxDecoration(
+              color: isActive ? AppColors.primary : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: isActive
+                  ? null
+                  : Border.all(color: AppColors.primary, width: 1.2),
             ),
-          ),
-          padding: const EdgeInsets.all(10),
-          child: Stack(
-            children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Spacer(),
-                  Icon(data.icon,
-                      size: 28,
-                      color: data.available
-                          ? const Color(0xFFF59E0B)
-                          : AppColors.textDisabled),
-                  const SizedBox(height: 6),
-                  Text(
-                    data.label,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: data.available
-                            ? AppColors.textPrimary
-                            : AppColors.textDisabled,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        height: 1.2),
-                  ),
-                  const Spacer(),
-                ],
-              ),
-              if (!data.available)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
+            child: Stack(
+              children: [
+                // Centre content
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(data.icon,
+                            color: isActive ? Colors.white : const Color(0xFF6B7280),
+                            size: iconSize),
+                        const SizedBox(height: 6),
+                        Text(
+                          data.label,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: isActive ? Colors.white : const Color(0xFF6B7280),
+                            fontSize: fontSize,
+                            fontWeight: FontWeight.w600,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Coming Soon — grey pill top-right
+                if (!isActive)
+                  Positioned(
+                    top: 6,
+                    right: 6,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
+                          horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppColors.textSecondary,
+                        color: const Color(0xFF6B7280),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text('Soon',
                           style: TextStyle(
                               color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600)),
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700)),
                     ),
                   ),
-                ),
-            ],
-          ),
-        ),
-      );
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 // ─── String extension ─────────────────────────────────────────────────────────
