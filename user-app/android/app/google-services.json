@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "1058165391039-btn808kg1g70g5anva7vnu50b94v5vrt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.paperprints.paper_prints_user",
+            "certificate_hash": "4c47ec6d1cacd59c9f2e2b0806096ff1da0659cd"
+          }
+        },
+        {
+          "client_id": "1058165391039-duvbi0m3d1ieij39nj1mv0ronto9s9c3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.paperprints.paper_prints_user",
+            "certificate_hash": "f9d401eae9f51c99706a99d5dafbfb5083d14081"
+          }
+        },
+        {
           "client_id": "1058165391039-sbvlrahekpl84c16a9k4rkr7rjlef1cq.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

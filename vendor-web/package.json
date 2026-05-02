@@ -10,14 +10,19 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@tailwindcss/postcss": "^4.2.4",
+    "axios": "^1.6.0",
+    "firebase": "^12.12.1",
     "next": "^14.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "socket.io-client": "^4.7.2",
-    "axios": "^1.6.0"
+    "socket.io-client": "^4.7.2"
   },
   "devDependencies": {
+    "autoprefixer": "^10.5.0",
     "eslint": "^8.53.0",
-    "eslint-config-next": "^14.0.0"
+    "eslint-config-next": "^14.0.0",
+    "postcss": "^8.5.13",
+    "tailwindcss": "^4.2.4"
   }
 }
