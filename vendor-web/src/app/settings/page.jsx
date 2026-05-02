@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '../../context/AuthContext';
+import Image from 'next/image';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Sidebar from '../../components/Sidebar';
 
@@ -53,7 +54,7 @@ export default function SettingsPage() {
                   overflow: 'hidden',
                 }}>
                   {user?.photoUrl
-                    ? <img src={user.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ? <Image src={user.photoUrl} alt="" width={48} height={48} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : (user?.name || 'V').charAt(0).toUpperCase()
                   }
                 </div>

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
@@ -26,7 +27,7 @@ export default function LoginPage() {
     <div style={{ minHeight: '100vh', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div style={{ width: '100%', maxWidth: 340 }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <img src="/login_screen.png" alt="PaperPrint Logo" style={{ height: 'auto', maxHeight: 220, maxWidth: '100%', margin: '0 auto' }} />
+          <Image src="/login_screen.png" alt="PaperPrint Logo" width={340} height={220} style={{ height: 'auto', maxHeight: 220, maxWidth: '100%', margin: '0 auto' }} />
           <p style={{ fontSize: 13, color: '#9CA3AF', marginTop: 12 }}>Vendor Dashboard</p>
         </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 const navItems = [
@@ -56,7 +57,7 @@ export default function Sidebar({ user, onSignOut }) {
         {/* Vendor info */}
         <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #E5E7EB' }}>
           <div style={{ marginBottom: 16 }}>
-            <img src="/favicon.png" alt="PaperPrint Logo" style={{ height: 56, width: 'auto' }} />
+            <Image src="/favicon.png" alt="PaperPrint Logo" width={56} height={56} style={{ height: 56, width: 'auto' }} />
           </div>
           <p style={{ fontSize: 14, fontWeight: 500, color: '#111111' }}>{user?.name || 'Vendor'}</p>
           <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>Vendor dashboard</p>
@@ -137,7 +138,7 @@ export default function Sidebar({ user, onSignOut }) {
               </div>
               <div>
                 <p style={{ fontSize: 15, fontWeight: 500, color: '#111111' }}>Sign out?</p>
-                <p style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>You'll need to sign in again to access the dashboard.</p>
+                <p style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>You&apos;ll need to sign in again to access the dashboard.</p>
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
