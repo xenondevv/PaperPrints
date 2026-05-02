@@ -55,8 +55,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
   // Demo vendor (hardcoded — no network call)
   static final _demoVendor = VendorModel(
-    id: '46670bea-7d2b-42be-9997-7be11044376f', // QuickPrint (seeded)
-    shopName: 'QuickPrint',
+    id: 'cc7b3e49-f76e-4d61-9491-4f797ea6dee0', // ABES Print Shop (seeded)
+    shopName: 'ABES Print Shop',
     address: 'Demo Shop, Local Area',
     phone: '9999999999',
     isOpen: true,
