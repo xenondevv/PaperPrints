@@ -109,19 +109,22 @@ class _ShopListScreenState extends ConsumerState<ShopListScreen> {
     );
   }
 
-  Widget _empty() => const Center(
+  Widget _empty() => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('🔍', style: TextStyle(fontSize: 40)),
-            SizedBox(height: 12),
-            Text('No shops found',
+            Opacity(
+              opacity: 0.4,
+              child: Image.asset('assets/logos/favicon.png', width: 64),
+            ),
+            const SizedBox(height: 16),
+            const Text('No shops found',
                 style: TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: 18)),
-            SizedBox(height: 4),
-            Text('Try a different search or expand your radius',
+            const SizedBox(height: 4),
+            const Text('Try a different search or expand your radius',
                 style:
                     TextStyle(color: AppColors.textTertiary, fontSize: 13)),
           ],
