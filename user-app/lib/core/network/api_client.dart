@@ -25,7 +25,7 @@ class ApiClient {
   Dio get dio => _dio;
 }
 
-class _AuthInterceptor extends Interceptor {
+class _AuthInterceptor extends QueuedInterceptor {
   final FlutterSecureStorage _storage;
   _AuthInterceptor(this._storage);
 

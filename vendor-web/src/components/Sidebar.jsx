@@ -55,6 +55,9 @@ export default function Sidebar({ user, onSignOut }) {
         className="fixed left-0 top-0 bottom-0 flex flex-col z-40">
         {/* Vendor info */}
         <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #E5E7EB' }}>
+          <div style={{ marginBottom: 16 }}>
+            <img src="/favicon.png" alt="PaperPrint Logo" style={{ height: 56, width: 'auto' }} />
+          </div>
           <p style={{ fontSize: 14, fontWeight: 500, color: '#111111' }}>{user?.name || 'Vendor'}</p>
           <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>Vendor dashboard</p>
         </div>

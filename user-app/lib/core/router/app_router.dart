@@ -61,6 +61,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) =>
             PaymentFailedScreen(errorMessage: state.extra as String?),
       ),
+      GoRoute(
+        path: '/profile/orders',
+        builder: (_, __) => const OrderHistoryScreen(),
+      ),
     ],
   );
 });

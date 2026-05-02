@@ -55,16 +55,16 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
   // Demo vendor (hardcoded — no network call)
   static final _demoVendor = VendorModel(
-    id: 'cc7b3e49-f76e-4d61-9491-4f797ea6dee0', // ABES Print Shop (seeded)
-    shopName: 'ABES Print Shop',
-    address: 'ABES Engineering College, Ghaziabad, UP',
+    id: '46670bea-7d2b-42be-9997-7be11044376f', // QuickPrint (seeded)
+    shopName: 'QuickPrint',
+    address: 'Demo Shop, Local Area',
     phone: '9999999999',
     isOpen: true,
     distanceKm: 0,
     settings: const VendorSettings(
-      priceBw: 1,
-      priceColor: 5,
-      priceDoubleSided: 0.5,
+      priceBw: 2,
+      priceColor: 10,
+      priceDoubleSided: 1,
       capabilities: ['BW', 'COLOR'],
     ),
   );

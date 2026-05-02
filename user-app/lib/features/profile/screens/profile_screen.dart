@@ -207,7 +207,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 _MenuItem(
                   icon: Icons.receipt_long_outlined,
                   label: 'My Orders',
-                  onTap: () => context.push('/orders'),
+                  onTap: () => context.push('/profile/orders'),
                 ),
                 _MenuItem(
                   icon: Icons.person_outline,
@@ -229,13 +229,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   icon: Icons.help_outline,
                   label: 'Help & Support',
                   onTap: () => _showInfo(
-                      context, 'Support', 'Email us at support@paperprints.app'),
+                      context, 'Support', 'Email us at support@paperprints.store'),
                 ),
                 _MenuItem(
                   icon: Icons.shield_outlined,
                   label: 'Privacy Policy',
-                  onTap: () => _showInfo(context, 'Privacy Policy',
-                      'We take your privacy seriously. Your data is never shared with third parties.'),
+                  onTap: () => _showInfo(context, 'Privacy Policy', _privacyPolicyText),
                 ),
                 _MenuItem(
                   icon: Icons.info_outline,
@@ -277,9 +276,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         backgroundColor: AppColors.surface,
         title: Text(title,
             style: const TextStyle(color: AppColors.textPrimary)),
-        content: Text(msg,
-            style: const TextStyle(
-                color: AppColors.textSecondary, height: 1.5)),
+        content: SingleChildScrollView(
+          child: Text(msg,
+              style: const TextStyle(
+                  color: AppColors.textSecondary, height: 1.5)),
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
@@ -289,6 +290,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 }
+
+const String _privacyPolicyText = '''
+Last Updated: May 2026
+
+1. Information We Collect
+• Account Data: When you sign in via Google, we collect your basic profile information (name, email address, and profile picture).
+• Location Data: We may request location access to show you the nearest available print shops.
+• Files and Documents: We temporarily store the documents (e.g., PDFs, images) you upload solely for fulfilling your print orders.
+
+2. How We Use Your Information
+• To route your print orders to your selected vendor.
+• To process payments securely through our third-party payment gateway.
+• To communicate order updates and status changes.
+
+3. Third-Party Services
+We use trusted third-party services that may access your data securely:
+• Firebase/Google Auth (for secure authentication)
+• Cashfree Payments (for processing transactions)
+These services operate under their own privacy policies.
+
+4. Data Retention and Security
+• Document Security: The files you upload are encrypted in transit and at rest.
+• Auto-Deletion: Your uploaded files are automatically deleted from our servers shortly after your order is completed or cancelled. We do not use your documents for any other purpose.
+• Account Data: You may request account deletion at any time by contacting our support team.
+
+5. Your Rights
+You have the right to access, update, or request the deletion of your personal data. You can manage your profile information directly within the app.
+
+6. Contact Us
+If you have any questions or concerns about this Privacy Policy, please contact us at support@paperprints.store.
+''';
 
 // ─── Edit Profile Bottom Sheet ────────────────────────────────────────────────
 
