@@ -20,55 +20,12 @@ class LoginScreen extends ConsumerWidget {
             children: [
               const Spacer(flex: 2),
 
-              // ── Brand ────────────────────────────────────────────────
+              // ── Brand Logo ───────────────────────────────────────────
               Center(
-                child: Column(
-                  children: [
-                    // Icon mark
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF00C9A7), Color(0xFF00A896)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: const Center(
-                        child: Text('🖨️',
-                            style: TextStyle(fontSize: 38)),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Paper Prints',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 30,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Print from anywhere, pick up nearby',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 15,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
+                child: Image.asset(
+                  'assets/logos/login_screen.png',
+                  width: 340,
+                  fit: BoxFit.contain,
                 ),
               ),
 

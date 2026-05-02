@@ -14,6 +14,7 @@ const vendorsRoutes = require('./modules/vendors/vendors.routes');
 const ordersRoutes        = require('./modules/orders/orders.routes');
 const vendorOrdersRoutes  = require('./modules/orders/vendor-orders.routes');
 const filesRoutes         = require('./modules/files/files.routes');
+const paymentsRoutes      = require('./modules/payments/payments.routes');
 
 const app = express();
 
@@ -38,9 +39,10 @@ app.get('/health', (_req, res) => res.json({ status: 'ok', ts: new Date() }));
 app.use('/api/auth',    authRoutes);
 app.use('/api/users',   usersRoutes);
 app.use('/api/vendors', vendorsRoutes);
-app.use('/api/orders',  ordersRoutes);
+app.use('/api/orders',        ordersRoutes);
 app.use('/api/vendor/orders', vendorOrdersRoutes);
-app.use('/api/files',   filesRoutes);
+app.use('/api/files',         filesRoutes);
+app.use('/api/payments',      paymentsRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ message: 'Route not found' }));

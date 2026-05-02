@@ -51,19 +51,22 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
     );
   }
 
-  Widget _empty() => const Center(
+  Widget _empty() => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('📋', style: TextStyle(fontSize: 48)),
-            SizedBox(height: 12),
-            Text('No orders yet',
+            Opacity(
+              opacity: 0.4,
+              child: Image.asset('assets/logos/favicon.png', width: 64),
+            ),
+            const SizedBox(height: 16),
+            const Text('No orders yet',
                 style: TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: 18)),
-            SizedBox(height: 4),
-            Text('Upload a PDF to place your first order',
+            const SizedBox(height: 4),
+            const Text('Upload a PDF to place your first order',
                 style:
                     TextStyle(color: AppColors.textTertiary, fontSize: 13)),
           ],

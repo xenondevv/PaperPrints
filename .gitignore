@@ -53,3 +53,9 @@ web-build/
 
 # Uploads (local dev only)
 uploads/
+.dart_tool/
+.gradle/
+build/
+*.lock
+*.bin
+*.stamp
