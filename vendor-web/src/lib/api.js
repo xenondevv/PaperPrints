@@ -101,4 +101,49 @@ export async function fetchCurrentUser() {
   return res.data.user;
 }
 
+// ── Vendor Profile API ─────────────────────────────────────────────────────────
+
+export async function fetchVendorProfile() {
+  const res = await api.get('/vendor/profile');
+  return res.data.vendor;
+}
+
+export async function registerVendor(data) {
+  const res = await api.post('/vendors/register', data);
+  return res.data;
+}
+
+export async function toggleShopStatus(isActive) {
+  const res = await api.patch('/vendor/profile/status', { is_active: isActive });
+  return res.data;
+}
+
+export async function updateBusinessHours(openingTime, closingTime) {
+  const res = await api.patch('/vendor/profile/hours', {
+    opening_time: openingTime,
+    closing_time: closingTime,
+  });
+  return res.data;
+}
+
+export async function updateVendorLocation(lat, lng, address) {
+  const res = await api.patch('/vendor/profile/location', { lat, lng, address });
+  return res.data;
+}
+
+export async function updateVendorEmail(email) {
+  const res = await api.patch('/vendor/profile/email', { email });
+  return res.data;
+}
+
+export async function updateBankDetails(bankDetails) {
+  const res = await api.patch('/vendor/profile/bank', bankDetails);
+  return res.data;
+}
+
+export async function updateVendorPricing(pricing) {
+  const res = await api.patch('/vendor/profile/pricing', pricing);
+  return res.data;
+}
+
 export default api;

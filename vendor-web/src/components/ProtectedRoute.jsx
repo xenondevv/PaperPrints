@@ -1,18 +1,24 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  const pathname = usePathname();
+
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/login');
+    } else if (!loading && user && user.role !== 'vendor' && pathname !== '/onboarding') {
+      router.replace('/onboarding');
+    } else if (!loading && user && user.role === 'vendor' && pathname === '/onboarding') {
+      router.replace('/dashboard');
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, pathname]);
 
   if (loading) {
     return (

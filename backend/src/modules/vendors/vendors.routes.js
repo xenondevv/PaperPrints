@@ -2,7 +2,7 @@
 
 const { Router } = require('express');
 const { requireAuth } = require('../../middleware/auth.middleware');
-const { handleGetNearby, handleGetById } = require('./vendors.controller');
+const { handleGetNearby, handleGetById, handleRegister } = require('./vendors.controller');
 
 const router = Router();
 
@@ -14,5 +14,8 @@ router.get('/nearby', handleGetNearby);
 
 // GET /api/vendors/:id
 router.get('/:id', handleGetById);
+
+// POST /api/vendors/register
+router.post('/register', handleRegister);
 
 module.exports = router;

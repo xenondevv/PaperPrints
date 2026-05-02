@@ -90,4 +90,37 @@ function formatVendor(row) {
   };
 }
 
-module.exports = { getNearby, getById };
+async function registerVendor(userId, data) {
+  const { ownerName, shopName, phone, address, email, lat = 0, lng = 0 } = data;
+
+  // 1. Check if user already has a vendor profile
+  const existing = await query(`SELECT id FROM vendors WHERE user_id = $1`, [userId]);
+  if (existing.rows[0]) {
+    const err = new Error('User is already registered as a vendor');
+    err.status = 400;
+    throw err;
+  }
+
+  // 2. Insert vendor profile
+  const vendorRes = await query(
+    `INSERT INTO vendors (user_id, owner_name, shop_name, phone, address, email, location_lat, location_lng, is_active, is_verified)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, false)
+     RETURNING *`,
+    [userId, ownerName, shopName, phone, address, email || null, lat, lng]
+  );
+  const vendor = vendorRes.rows[0];
+
+  // 3. Insert default settings
+  await query(
+    `INSERT INTO vendor_settings (vendor_id, price_bw, price_color, price_double_sided, max_file_size_mb, avg_processing_min, capabilities)
+     VALUES ($1, 2.00, 10.00, 1.00, 50, 15, ARRAY['BW', 'COLOR']::text[])`,
+    [vendor.id]
+  );
+
+  // 4. Upgrade user role
+  await query(`UPDATE users SET role = 'vendor' WHERE id = $1`, [userId]);
+
+  return { message: 'Registration successful', vendorId: vendor.id };
+}
+
+module.exports = { getNearby, getById, registerVendor };

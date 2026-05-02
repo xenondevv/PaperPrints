@@ -10,7 +10,13 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && user) router.replace('/dashboard');
+    if (!loading && user) {
+      if (user.role === 'vendor') {
+        router.replace('/dashboard');
+      } else {
+        router.replace('/onboarding');
+      }
+    }
   }, [user, loading, router]);
 
   if (loading) {

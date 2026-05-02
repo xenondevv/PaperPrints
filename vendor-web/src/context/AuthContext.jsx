@@ -41,7 +41,7 @@ export function AuthProvider({ children }) {
         name: firebaseUser.displayName,
         email: firebaseUser.email,
         photoUrl: firebaseUser.photoURL,
-        role: 'vendor',
+        role: 'user',
       };
       setUser(fallbackUser);
       return fallbackUser;
@@ -122,6 +122,13 @@ export function AuthProvider({ children }) {
       const newAt = res.data.accessToken;
       setAccessToken(newAt);
       localStorage.setItem('pp_access_token', newAt);
+
+      // Sync latest user data (role may have changed, e.g. user → vendor)
+      if (res.data.user) {
+        setUser(res.data.user);
+        localStorage.setItem('pp_user', JSON.stringify(res.data.user));
+      }
+
       return newAt;
     } catch {
       await signOutUser();

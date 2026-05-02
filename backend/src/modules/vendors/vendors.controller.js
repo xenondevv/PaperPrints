@@ -1,6 +1,6 @@
 'use strict';
 
-const { getNearby, getById } = require('./vendors.service');
+const { getNearby, getById, registerVendor } = require('./vendors.service');
 
 async function handleGetNearby(req, res, next) {
   try {
@@ -28,4 +28,21 @@ async function handleGetById(req, res, next) {
   }
 }
 
-module.exports = { handleGetNearby, handleGetById };
+async function handleRegister(req, res, next) {
+  try {
+    const { ownerName, shopName, phone, address } = req.body;
+    if (!ownerName || !shopName || !phone || !address) {
+      return res.status(400).json({ message: 'ownerName, shopName, phone, and address are required' });
+    }
+    const result = await registerVendor(req.user.id, req.body);
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  handleGetNearby,
+  handleGetById,
+  handleRegister,
+};
