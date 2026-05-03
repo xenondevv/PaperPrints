@@ -17,10 +17,10 @@ class VendorSettings {
   });
 
   factory VendorSettings.fromJson(Map<String, dynamic> j) => VendorSettings(
-        priceBw: (j['price_bw'] as num).toDouble(),
-        priceColor: (j['price_color'] as num).toDouble(),
-        priceDoubleSided: j['price_double_sided'] != null
-            ? (j['price_double_sided'] as num).toDouble()
+        priceBw: ((j['priceBw'] ?? j['price_bw']) as num).toDouble(),
+        priceColor: ((j['priceColor'] ?? j['price_color']) as num).toDouble(),
+        priceDoubleSided: (j['priceDoubleSided'] ?? j['price_double_sided']) != null
+            ? ((j['priceDoubleSided'] ?? j['price_double_sided']) as num).toDouble()
             : null,
         capabilities: (j['capabilities'] as List<dynamic>? ?? [])
             .map((e) => e as String)
@@ -53,12 +53,12 @@ class VendorModel {
 
   factory VendorModel.fromJson(Map<String, dynamic> j) => VendorModel(
         id: j['id'] as String,
-        shopName: j['shop_name'] as String,
+        shopName: (j['shopName'] ?? j['shop_name']) as String,
         address: j['address'] as String?,
         phone: j['phone'] as String?,
-        isOpen: j['is_open'] as bool? ?? false,
-        distanceKm: j['distance_km'] != null
-            ? (j['distance_km'] as num).toDouble()
+        isOpen: (j['isOpen'] ?? j['is_open']) as bool? ?? false,
+        distanceKm: (j['distanceKm'] ?? j['distance_km']) != null
+            ? ((j['distanceKm'] ?? j['distance_km']) as num).toDouble()
             : null,
         lat: j['lat'] != null ? (j['lat'] as num).toDouble() : null,
         lng: j['lng'] != null ? (j['lng'] as num).toDouble() : null,

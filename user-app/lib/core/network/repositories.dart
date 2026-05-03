@@ -34,12 +34,22 @@ class FilesRepository {
   final _dio = ApiClient.instance.dio;
 
   Future<Map<String, dynamic>> upload(
-    String filePath,
     String fileName, {
+    String? filePath,
+    List<int>? bytes,
     void Function(int sent, int total)? onProgress,
   }) async {
+    final MultipartFile multipartFile;
+    if (bytes != null) {
+      multipartFile = MultipartFile.fromBytes(bytes, filename: fileName);
+    } else if (filePath != null) {
+      multipartFile = await MultipartFile.fromFile(filePath, filename: fileName);
+    } else {
+      throw Exception('Must provide either filePath or bytes');
+    }
+
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath, filename: fileName),
+      'file': multipartFile,
     });
     final res = await _dio.post(
       '/files/upload',
