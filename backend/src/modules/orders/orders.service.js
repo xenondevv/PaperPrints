@@ -7,7 +7,7 @@ const { emitNewOrderToVendor } = require('../../sockets/order.socket');
 
 // ── Create order ──────────────────────────────────────────────────────────────
 
-async function createOrder(userId, { vendor_id, file_id, file_ids, copies, is_double_sided, pages }) {
+async function createOrder(userId, { vendor_id, file_id, original_file_id, file_ids, copies, is_double_sided, pages }) {
   // 1. Validate vendor
   const vendorRes = await query(
     `SELECT v.id, v.is_active, vs.price_bw, vs.price_color, vs.price_double_sided
@@ -57,33 +57,42 @@ async function createOrder(userId, { vendor_id, file_id, file_ids, copies, is_do
     },
   });
 
-  // 5. Insert order (primary file_id kept for backward compat)
+  // 5. Insert order (use original_file_id if provided for the main file_id, so total_pages points to original document)
   const orderNumber = generateOrderNumber();
+  const mainFileId = original_file_id || primaryFileId;
   const orderRes = await query(
     `INSERT INTO orders
        (order_number, user_id, vendor_id, file_id, status, copies, is_double_sided, total_price)
        VALUES ($1, $2, $3, $4, 'PAYMENT_PENDING', $5, $6, $7)
        RETURNING *`,
-    [orderNumber, userId, vendor_id, primaryFileId, copies || 1, is_double_sided || false, totalPrice]
+    [orderNumber, userId, vendor_id, mainFileId, copies || 1, is_double_sided || false, totalPrice]
   );
   const order = orderRes.rows[0];
 
   // 6. Insert into order_files junction table
   if (allFileIds.length > 0) {
-    const ofVals = allFileIds.map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`).join(', ');
-    const ofParams = allFileIds.flatMap((fid, i) => {
-      // Derive a label from the file name (merged_bw_… → 'bw', merged_color_… → 'color')
+    for (let i = 0; i < allFileIds.length; i++) {
+      const fid = allFileIds[i];
+      // Determine label based on file name if possible
       let label = null;
-      if (allFileIds.length > 1) {
-        label = i === 0 ? 'bw' : 'color';
+      if (allFileIds.length > 1 || true) { // We'll query DB for file name
+        const fRes = await query(`SELECT file_name FROM files WHERE id = $1`, [fid]);
+        if (fRes.rows[0]) {
+          const fname = fRes.rows[0].file_name;
+          if (fname.includes('merged_color_')) label = 'color';
+          else if (fname.includes('merged_bw_')) label = 'bw';
+        }
       }
-      return [order.id, fid, label, i];
-    });
-    await query(
-      `INSERT INTO order_files (order_id, file_id, label, sort_order) VALUES ${ofVals}
-       ON CONFLICT (order_id, file_id) DO NOTHING`,
-      ofParams
-    );
+      if (!label && allFileIds.length > 1) {
+        label = i === 0 ? 'bw' : 'color'; // Fallback
+      }
+
+      await query(
+        `INSERT INTO order_files (order_id, file_id, label, sort_order) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (order_id, file_id) DO NOTHING`,
+        [order.id, fid, label, i]
+      );
+    }
   }
 
   // 7. Insert per-page specs

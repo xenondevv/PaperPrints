@@ -466,7 +466,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
     try {
       final uploadedRecords =
-          _fileRecords.where((r) => r != null && r['id'] != null).toList();
+          _fileRecords.where((r) => r != null && r['id'] != null).cast<Map<String, dynamic>>().toList();
       if (uploadedRecords.isEmpty) {
         _showError('No uploaded files found. Please wait for upload to complete.');
         return;
@@ -493,10 +493,11 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
       debugPrint('Placing order with merged file IDs: $fileIds');
 
-      // Step 1: Create the order on the backend
+      final originalFileId = uploadedRecords.first['id'].toString();
       final order = await ref.read(ordersProvider.notifier).create({
         'vendor_id': _selectedVendor!.id,
         'file_id': fileIds.first,
+        'original_file_id': originalFileId,
         'file_ids': fileIds,
         'copies': _copies,
         'is_double_sided': _doubleSided,
@@ -573,7 +574,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           setState(() => _paymentInProgress = false);
           debugPrint('Payment failed: $error');
           // Navigate to failed screen
-          context.push('/payment-failed', extra: error?.toString());
+          context.push('/payment-failed', extra: error.toString());
         },
       );
     } catch (e) {
@@ -1543,9 +1544,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Total Price',
-                        style: TextStyle(
-                            color: AppColors.textSecondary, fontSize: 12)),
+                    Text('Total: $_totalPages Pages',
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
                     Text(_calcTotalPrice(),
                         style: const TextStyle(
                             color: AppColors.primary,
