@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useAuth } from '../../context/AuthContext';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Sidebar from '../../components/Sidebar';
+import LocationPicker from '../../components/LocationPicker';
 import {
   fetchVendorProfile,
   toggleShopStatus,
@@ -117,7 +118,6 @@ export default function SettingsPage() {
   const [address, setAddress] = useState('');
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
-  const [isDetectingLoc, setIsDetectingLoc] = useState(false);
   const [locationSaveStatus, setLocationSaveStatus] = useState('idle');
 
   // Email
@@ -214,24 +214,10 @@ export default function SettingsPage() {
     setBankSaveStatus
   );
 
-  const detectLocation = () => {
-    if (!navigator.geolocation) { alert("Geolocation is not supported by your browser"); return; }
-    setIsDetectingLoc(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const latitude = pos.coords.latitude;
-        const longitude = pos.coords.longitude;
-        setLat(latitude);
-        setLng(longitude);
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
-          const data = await res.json();
-          if (data && data.display_name) { setAddress(data.display_name); }
-        } catch (err) { console.error("Reverse geocoding failed", err); }
-        finally { setIsDetectingLoc(false); }
-      },
-      () => { alert("Unable to retrieve your location"); setIsDetectingLoc(false); }
-    );
+  const handleLocationSelect = ({ address: addr, lat: newLat, lng: newLng }) => {
+    setAddress(addr);
+    setLat(newLat);
+    setLng(newLng);
   };
 
   return (
@@ -419,24 +405,12 @@ export default function SettingsPage() {
 
                 {/* SHOP LOCATION */}
                 <SectionCard title="Shop Location">
-                  <div style={{ marginBottom: 12 }}>
-                    <button
-                      onClick={detectLocation}
-                      disabled={isDetectingLoc}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500,
-                        color: isDetectingLoc ? '#9CA3AF' : '#0D9488', background: '#F0FDFA',
-                        border: `1px solid ${isDetectingLoc ? '#E5E7EB' : '#CCFBF1'}`,
-                        padding: '8px 12px', borderRadius: 6, cursor: isDetectingLoc ? 'not-allowed' : 'pointer'
-                      }}>
-                      <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                      {isDetectingLoc ? 'Detecting Location...' : 'Use My Current Location'}
-                    </button>
-                  </div>
-                  <FormInput label="Full Address" value={address} onChange={setAddress} placeholder="123 Main St, City, State, ZIP" />
-                  {lat && lng && (
-                    <p style={{ fontSize: 12, color: '#9CA3AF' }}>Coordinates saved: {Number(lat).toFixed(4)}, {Number(lng).toFixed(4)}</p>
-                  )}
+                  <LocationPicker
+                    initialLat={lat}
+                    initialLng={lng}
+                    initialAddress={address}
+                    onLocationSelect={handleLocationSelect}
+                  />
                   <SaveButton onSave={handleSaveLocation} status={locationSaveStatus} />
                 </SectionCard>
 

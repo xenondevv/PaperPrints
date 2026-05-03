@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '../../context/AuthContext';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import LocationPicker from '../../components/LocationPicker';
 import {
   registerVendor,
   updateVendorPricing,
@@ -95,7 +96,7 @@ export default function OnboardingPage() {
   const [address, setAddress] = useState('');
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
-  const [isDetecting, setIsDetecting] = useState(false);
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
 
   // Step 3
   const [priceBw, setPriceBw] = useState('');
@@ -126,8 +127,7 @@ export default function OnboardingPage() {
 
   const validateStep2 = () => {
     const e = {};
-    if (!address.trim()) e.address = 'Address is required';
-    if (lat == null || lng == null) e.location = 'Please use the location button to set your exact coordinates';
+    if (!locationConfirmed || lat == null || lng == null) e.location = 'Please select your shop location on the map';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -156,30 +156,14 @@ export default function OnboardingPage() {
     if (step > 1) setStep(step - 1);
   };
 
-  /* ── Detect Location ── */
+  /* ── Location Selected ── */
 
-  const detectLocation = () => {
-    if (!navigator.geolocation) { setErrors(e => ({ ...e, location: 'Geolocation is not supported by your browser' })); return; }
-    setIsDetecting(true);
+  const handleLocationSelect = ({ address: addr, lat: newLat, lng: newLng }) => {
+    setAddress(addr);
+    setLat(newLat);
+    setLng(newLng);
+    setLocationConfirmed(true);
     setErrors(e => { const n = { ...e }; delete n.location; return n; });
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const latitude = pos.coords.latitude;
-        const longitude = pos.coords.longitude;
-        setLat(latitude);
-        setLng(longitude);
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
-          const data = await res.json();
-          if (data?.display_name) setAddress(data.display_name);
-        } catch (err) { console.error('Reverse geocoding failed', err); }
-        finally { setIsDetecting(false); }
-      },
-      () => {
-        setErrors(e => ({ ...e, location: 'Unable to retrieve your location. Please allow location access.' }));
-        setIsDetecting(false);
-      }
-    );
   };
 
   /* ── Submit ── */
@@ -216,17 +200,17 @@ export default function OnboardingPage() {
       // 4. Update business hours
       await updateBusinessHours(openingTime, closingTime);
 
-      // Registration complete, go to dashboard
-      router.push('/dashboard');
+      // Registration complete, go to pending
+      router.push('/pending');
     } catch (err) {
       const errMessage = err.response?.data?.message || '';
       if (errMessage === 'User is already registered as a vendor') {
         // User already has a vendor profile, just their local role is outdated.
         const newToken = await refreshAccessToken();
         if (newToken) {
-          router.push('/dashboard');
+          router.push('/pending');
         } else {
-          window.location.href = '/dashboard';
+          window.location.href = '/pending';
         }
       } else {
         setSubmitError(errMessage || 'Registration failed. Please try again.');
@@ -282,38 +266,24 @@ export default function OnboardingPage() {
             {/* ═══ STEP 2: Location ═══ */}
             {step === 2 && (
               <>
-                <div style={{ marginBottom: 16 }}>
-                  <button
-                    onClick={detectLocation}
-                    disabled={isDetecting}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                      padding: '12px 16px', borderRadius: 8, fontSize: 14, fontWeight: 500,
-                      color: isDetecting ? '#9CA3AF' : '#0D9488',
-                      background: '#F0FDFA', border: `1px solid ${isDetecting ? '#E5E7EB' : '#CCFBF1'}`,
-                      cursor: isDetecting ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => !isDetecting && (e.currentTarget.style.background = '#CCFBF1')}
-                    onMouseLeave={e => !isDetecting && (e.currentTarget.style.background = '#F0FDFA')}
-                  >
-                    <svg style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    {isDetecting ? 'Detecting Location...' : 'Use My Current Location'}
-                  </button>
-                </div>
+                <LocationPicker
+                  initialLat={lat}
+                  initialLng={lng}
+                  initialAddress={address}
+                  onLocationSelect={handleLocationSelect}
+                />
 
-                <Field label="Full Shop Address" value={address} onChange={setAddress} placeholder="123 Printing Lane, District Center..." error={errors.address} required />
-
-                {lat != null && lng != null && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, marginBottom: 16 }}>
+                {locationConfirmed && address && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, marginTop: 12 }}>
                     <svg style={{ width: 16, height: 16, color: '#16A34A', flexShrink: 0 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span style={{ fontSize: 13, color: '#166534' }}>
-                      Location set: {Number(lat).toFixed(4)}, {Number(lng).toFixed(4)}
+                    <span style={{ fontSize: 13, color: '#166534', wordBreak: 'break-word' }}>
+                      Location set: {address}
                     </span>
                   </div>
                 )}
 
                 {errors.location && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, marginTop: 12 }}>
                     <svg style={{ width: 16, height: 16, color: '#B91C1C', flexShrink: 0 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.834-1.964-.834-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
                     <span style={{ fontSize: 12, color: '#B91C1C' }}>{errors.location}</span>
                   </div>
