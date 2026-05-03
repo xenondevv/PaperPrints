@@ -10,6 +10,7 @@ const {
   handleReject,
   handleStatusUpdate,
   handleGetFileUrl,
+  handleVerifyPickup,
 } = require('./vendor-orders.controller');
 
 const router = Router();
@@ -31,7 +32,10 @@ router.patch('/:id/accept', handleAccept);
 // PATCH  /api/vendor/orders/:id/reject  — reject
 router.patch('/:id/reject', handleReject);
 
-// PATCH  /api/vendor/orders/:id/status  — update status (PROCESSING→READY→COMPLETED)
+// PATCH  /api/vendor/orders/:id/status  — update status (ACCEPTED→READY)
 router.patch('/:id/status', handleStatusUpdate);
+
+// POST   /api/vendor/orders/:id/verify-pickup — validate pickup code and complete
+router.post('/:id/verify-pickup', handleVerifyPickup);
 
 module.exports = router;

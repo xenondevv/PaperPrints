@@ -205,10 +205,12 @@ async function updateOrderStatus(userId, orderId, newStatus) {
   const updateFields = [`status = $3`, `updated_at = NOW()`];
   const params = [orderId, vendorId, newStatus];
 
-  // If marking as READY, generate a QR code URL (placeholder)
+  // If marking as READY, generate a 6-digit numeric pickup code
+  let pickupCode = null;
   if (newStatus === 'READY') {
+    pickupCode = String(Math.floor(100000 + Math.random() * 900000)); // 100000–999999
     updateFields.push(`qr_code_url = $4`);
-    params.push(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=order:${orderId}`);
+    params.push(pickupCode);
   }
 
   const result = await query(
@@ -222,7 +224,54 @@ async function updateOrderStatus(userId, orderId, newStatus) {
     emitStatusUpdate(current.rows[0].user_id, orderId, newStatus);
   }
 
-  return { message: `Order status updated to ${newStatus}`, orderId, status: newStatus };
+  return { message: `Order status updated to ${newStatus}`, orderId, status: newStatus, pickupCode };
+}
+
+// ── Verify pickup code and mark COMPLETED ─────────────────────────────────────
+
+async function verifyPickup(userId, orderId, code) {
+  const vendorRes = await query(`SELECT id FROM vendors WHERE user_id = $1`, [userId]);
+  if (!vendorRes.rows[0]) {
+    const err = new Error('Vendor profile not found');
+    err.status = 404;
+    throw err;
+  }
+  const vendorId = vendorRes.rows[0].id;
+
+  const current = await query(
+    `SELECT status, user_id, qr_code_url FROM orders WHERE id = $1 AND vendor_id = $2`,
+    [orderId, vendorId]
+  );
+
+  if (!current.rows[0]) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const { status, user_id, qr_code_url } = current.rows[0];
+
+  if (status !== 'READY') {
+    const err = new Error('Order is not in READY state');
+    err.status = 422;
+    throw err;
+  }
+
+  // Validate the 6-digit code
+  if (!code || String(code).trim() !== String(qr_code_url).trim()) {
+    const err = new Error('Invalid pickup code');
+    err.status = 400;
+    throw err;
+  }
+
+  await query(
+    `UPDATE orders SET status = 'COMPLETED', updated_at = NOW() WHERE id = $1 AND vendor_id = $2`,
+    [orderId, vendorId]
+  );
+
+  emitStatusUpdate(user_id, orderId, 'COMPLETED');
+
+  return { message: 'Order completed successfully', orderId, status: 'COMPLETED' };
 }
 
 // ── Format helper ──────────────────────────────────────────────────────────────
@@ -323,5 +372,6 @@ module.exports = {
   acceptOrder,
   rejectOrder,
   updateOrderStatus,
+  verifyPickup,
   getOrderFileUrl,
 };

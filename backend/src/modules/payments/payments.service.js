@@ -168,8 +168,33 @@ async function verifyPayment(orderId) {
     [newStatus, cfPaymentId, orderId]
   );
 
-  // We no longer automatically update the order status to ACCEPTED.
-  // The order remains PENDING so the vendor can manually confirm it.
+  // If payment succeeded, transition the order from PAYMENT_PENDING to PENDING
+  // and emit the socket event to the vendor.
+  if (newStatus === 'COMPLETED') {
+    const orderUpdateRes = await query(
+      `UPDATE orders SET status = 'PENDING' WHERE id = $1 AND status = 'PAYMENT_PENDING' RETURNING *`,
+      [orderId]
+    );
+
+    if (orderUpdateRes.rows[0]) {
+      try {
+        const order = orderUpdateRes.rows[0];
+        const { emitNewOrderToVendor } = require('../../sockets/order.socket');
+        const { getOrderById } = require('../orders/orders.service');
+        
+        const vendorUserRes = await query(
+          `SELECT user_id FROM vendors WHERE id = $1`, [order.vendor_id]
+        );
+        if (vendorUserRes.rows[0]) {
+          // We need the fully formatted order, getOrderById already formats it
+          const fullOrder = await getOrderById(order.user_id, order.id);
+          emitNewOrderToVendor(vendorUserRes.rows[0].user_id, fullOrder);
+        }
+      } catch (e) {
+        console.error('[socket] Failed to notify vendor after payment:', e.message);
+      }
+    }
+  }
 
   return {
     status:        newStatus,
