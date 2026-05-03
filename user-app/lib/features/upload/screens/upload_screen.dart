@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pdfx/pdfx.dart';
+import 'package:pdf/pdf.dart' as pw;
+import 'package:pdf/widgets.dart' as pw;
 import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 import 'package:paper_prints_user/core/constants/app_constants.dart';
 import 'package:paper_prints_user/core/network/repositories.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
@@ -277,6 +280,182 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
   bool _paymentInProgress = false;
 
+
+
+  /// Renders a specific page from a PDF file as a pw.MemoryImage for embedding
+  /// in a merged PDF document.
+  Future<pw.MemoryImage?> _renderPageAsImage(String filePath, int pageNum) async {
+    final ext = filePath.split('.').last.toLowerCase();
+    if (_imageExts.contains(ext)) {
+      // For images, just read the bytes directly
+      final bytes = await File(filePath).readAsBytes();
+      return pw.MemoryImage(bytes);
+    }
+    // For PDFs, render the specific page
+    final doc = await PdfDocument.openFile(filePath);
+    try {
+      if (pageNum > doc.pagesCount) return null;
+      final page = await doc.getPage(pageNum);
+      final rendered = await page.render(
+        width: page.width * 2,
+        height: page.height * 2,
+        format: PdfPageImageFormat.png,
+      );
+      await page.close();
+      if (rendered == null) return null;
+      return pw.MemoryImage(rendered.bytes);
+    } finally {
+      await doc.close();
+    }
+  }
+
+  /// Merges specified global page indices into a single PDF document.
+  /// [pageIndices] are 1-based global page numbers across all files.
+  /// Returns the temp file path of the merged PDF.
+  Future<String> _buildMergedPdf(List<int> pageIndices, String label) async {
+    final pdfDoc = pw.Document();
+    final isLandscape = _orientation == _Orientation.landscape;
+
+    for (final globalPage in pageIndices) {
+      // Map global page number to (file index, local page number)
+      int offset = 0;
+      String? filePath;
+      int localPage = 1;
+      for (int f = 0; f < _files.length; f++) {
+        final fc = _filePageCounts.length > f ? _filePageCounts[f] : 0;
+        if (globalPage <= offset + fc) {
+          filePath = _files[f].path!;
+          localPage = globalPage - offset;
+          break;
+        }
+        offset += fc;
+      }
+      if (filePath == null) continue;
+
+      final image = await _renderPageAsImage(filePath, localPage);
+      if (image == null) continue;
+
+      if (isLandscape) {
+        pdfDoc.addPage(
+          pw.Page(
+            pageFormat: pw.PdfPageFormat.a4,
+            margin: pw.EdgeInsets.zero,
+            build: (ctx) => pw.Center(
+              child: pw.Transform.rotateBox(
+                angle: -3.14159265 / 2,
+                child: pw.Image(image,
+                    fit: pw.BoxFit.contain,
+                    width: pw.PdfPageFormat.a4.availableHeight,
+                    height: pw.PdfPageFormat.a4.availableWidth),
+              ),
+            ),
+          ),
+        );
+      } else {
+        pdfDoc.addPage(
+          pw.Page(
+            pageFormat: pw.PdfPageFormat.a4,
+            margin: pw.EdgeInsets.zero,
+            build: (ctx) => pw.Center(
+              child: pw.Image(image, fit: pw.BoxFit.contain),
+            ),
+          ),
+        );
+      }
+    }
+
+    final tmpDir = await getTemporaryDirectory();
+    final mergedPath =
+        '${tmpDir.path}/merged_${label}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final file = File(mergedPath);
+    await file.writeAsBytes(await pdfDoc.save());
+    return mergedPath;
+  }
+
+  /// Merges all uploaded files into either 1 or 2 PDFs based on the user's
+  /// color mode, uploads them, and returns a list of uploaded file IDs.
+  ///
+  /// - Colored / B&W: all pages → 1 merged PDF
+  /// - Auto Detect / Manual: color pages → 1 PDF, B&W pages → 1 PDF
+  ///   (only creates the PDF if there are pages of that type)
+  Future<List<String>> _mergeAndUploadFiles() async {
+    final resolved = _resolvedPages();
+    final total = _pageCountRaw;
+
+    // Determine which global pages are active
+    final activePages = _selectedPages.isEmpty
+        ? List.generate(total, (i) => i + 1)
+        : (_selectedPages.toList()..sort());
+
+    if (_colorMode == _ColorMode.colored || _colorMode == _ColorMode.bw) {
+      // Single merged PDF — all pages same color mode
+      final label = _colorMode == _ColorMode.colored ? 'color' : 'bw';
+      debugPrint('Merging ${activePages.length} pages into single $label PDF');
+      final mergedPath = await _buildMergedPdf(activePages, label);
+      final record = await FilesRepository().upload(
+        mergedPath,
+        'merged_${label}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        onProgress: (sent, total) =>
+            setState(() => _uploadProgress = sent / total),
+      );
+      try { await File(mergedPath).delete(); } catch (_) {}
+      return [record['id'].toString()];
+    }
+
+    // Auto Detect or Manual — split into color and B&W PDFs
+    final colorPages = <int>[];
+    final bwPages = <int>[];
+    for (final p in resolved) {
+      final pageNum = p['page_number'] as int;
+      if (!activePages.contains(pageNum)) continue;
+      if (p['print_type'] == PrintType.color) {
+        colorPages.add(pageNum);
+      } else {
+        bwPages.add(pageNum);
+      }
+    }
+    // If resolved is empty, default all to BW
+    if (resolved.isEmpty) {
+      bwPages.addAll(activePages);
+    }
+
+    final fileIds = <String>[];
+    int step = 0;
+    final totalSteps = (colorPages.isNotEmpty ? 1 : 0) + (bwPages.isNotEmpty ? 1 : 0);
+
+    if (bwPages.isNotEmpty) {
+      debugPrint('Merging ${bwPages.length} B&W pages into PDF');
+      final bwPath = await _buildMergedPdf(bwPages, 'bw');
+      final record = await FilesRepository().upload(
+        bwPath,
+        'merged_bw_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        onProgress: (sent, total) {
+          step = 0;
+          setState(() => _uploadProgress = (step + sent / total) / totalSteps);
+        },
+      );
+      try { await File(bwPath).delete(); } catch (_) {}
+      fileIds.add(record['id'].toString());
+    }
+
+    if (colorPages.isNotEmpty) {
+      debugPrint('Merging ${colorPages.length} Color pages into PDF');
+      final colorPath = await _buildMergedPdf(colorPages, 'color');
+      final record = await FilesRepository().upload(
+        colorPath,
+        'merged_color_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        onProgress: (sent, total) {
+          step = 1;
+          setState(() => _uploadProgress = (step + sent / total) / totalSteps);
+        },
+      );
+      try { await File(colorPath).delete(); } catch (_) {}
+      fileIds.add(record['id'].toString());
+    }
+
+    return fileIds;
+  }
+
   Future<void> _placeOrder() async {
     if (_selectedVendor == null) {
       _showError('Please select a print shop.');
@@ -290,8 +469,27 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         _showError('No uploaded files found. Please wait for upload to complete.');
         return;
       }
-      debugPrint('Placing order with records: ${uploadedRecords.map((r) => r!['id']).toList()}');
-      final fileIds = uploadedRecords.map((r) => r!['id'].toString()).toList();
+
+      // Merge all files into 1 or 2 PDFs based on color mode,
+      // then upload the merged PDF(s) and use those file IDs.
+      setState(() {
+        _uploadingCount++;
+        _uploadProgress = 0;
+      });
+
+      List<String> fileIds;
+      try {
+        fileIds = await _mergeAndUploadFiles();
+      } finally {
+        setState(() => _uploadingCount--);
+      }
+
+      if (fileIds.isEmpty) {
+        _showError('Failed to merge files. Please try again.');
+        return;
+      }
+
+      debugPrint('Placing order with merged file IDs: $fileIds');
 
       // Step 1: Create the order on the backend
       final order = await ref.read(ordersProvider.notifier).create({
@@ -757,7 +955,6 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                                   final filePath = _files[f].path!;
                                   final ext = filePath.split('.').last.toLowerCase();
                                   if (_imageExts.contains(ext)) {
-                                    // Show image in full-screen dialog
                                     showDialog(
                                       context: context,
                                       builder: (_) => Dialog(
@@ -1140,6 +1337,74 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                               ),
                             ],
                           ),
+                          // ── Live paper preview ──────────────────────────
+                          if (_thumbnails.isNotEmpty && _thumbnails[0] != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16),
+                              child: Center(
+                                child: Container(
+                                  width: 120,
+                                  height: 170,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: AppColors.border,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.08),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.all(8),
+                                        child: AnimatedRotation(
+                                          turns: _orientation == _Orientation.landscape ? -0.25 : 0,
+                                          duration: const Duration(milliseconds: 300),
+                                          curve: Curves.easeInOut,
+                                          child: FittedBox(
+                                            fit: BoxFit.contain,
+                                            child: Image.memory(
+                                              _thumbnails[0]!,
+                                              fit: BoxFit.contain,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      // Label badge
+                                      Positioned(
+                                        bottom: 4,
+                                        right: 4,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary.withOpacity(0.9),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            _orientation == _Orientation.landscape
+                                                ? 'Landscape'
+                                                : 'Portrait',
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),

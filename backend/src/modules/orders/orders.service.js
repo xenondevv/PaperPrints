@@ -7,7 +7,7 @@ const { emitNewOrderToVendor } = require('../../sockets/order.socket');
 
 // ── Create order ──────────────────────────────────────────────────────────────
 
-async function createOrder(userId, { vendor_id, file_id, copies, is_double_sided, pages }) {
+async function createOrder(userId, { vendor_id, file_id, file_ids, copies, is_double_sided, pages }) {
   // 1. Validate vendor
   const vendorRes = await query(
     `SELECT v.id, v.is_active, vs.price_bw, vs.price_color, vs.price_double_sided
@@ -28,18 +28,24 @@ async function createOrder(userId, { vendor_id, file_id, copies, is_double_sided
     throw err;
   }
 
-  // 2. Validate file belongs to user
-  const fileRes = await query(
-    `SELECT id, total_pages FROM files WHERE id = $1 AND user_id = $2`,
-    [file_id, userId]
-  );
-  if (!fileRes.rows[0]) {
-    const err = new Error('File not found');
-    err.status = 404;
-    throw err;
+  // 2. Resolve the list of file IDs (prefer file_ids array, fall back to file_id)
+  const allFileIds = (file_ids && file_ids.length > 0) ? file_ids : [file_id];
+  const primaryFileId = allFileIds[0];
+
+  // 3. Validate all files belong to user
+  for (const fid of allFileIds) {
+    const fileRes = await query(
+      `SELECT id, total_pages FROM files WHERE id = $1 AND user_id = $2`,
+      [fid, userId]
+    );
+    if (!fileRes.rows[0]) {
+      const err = new Error(`File ${fid} not found`);
+      err.status = 404;
+      throw err;
+    }
   }
 
-  // 3. Calculate price
+  // 4. Calculate price
   const totalPrice = calculatePrice({
     pages,
     copies:       copies || 1,
@@ -51,18 +57,36 @@ async function createOrder(userId, { vendor_id, file_id, copies, is_double_sided
     },
   });
 
-  // 4. Insert order
+  // 5. Insert order (primary file_id kept for backward compat)
   const orderNumber = generateOrderNumber();
   const orderRes = await query(
     `INSERT INTO orders
        (order_number, user_id, vendor_id, file_id, status, copies, is_double_sided, total_price)
        VALUES ($1, $2, $3, $4, 'PENDING', $5, $6, $7)
        RETURNING *`,
-    [orderNumber, userId, vendor_id, file_id, copies || 1, is_double_sided || false, totalPrice]
+    [orderNumber, userId, vendor_id, primaryFileId, copies || 1, is_double_sided || false, totalPrice]
   );
   const order = orderRes.rows[0];
 
-  // 5. Insert per-page specs
+  // 6. Insert into order_files junction table
+  if (allFileIds.length > 0) {
+    const ofVals = allFileIds.map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`).join(', ');
+    const ofParams = allFileIds.flatMap((fid, i) => {
+      // Derive a label from the file name (merged_bw_… → 'bw', merged_color_… → 'color')
+      let label = null;
+      if (allFileIds.length > 1) {
+        label = i === 0 ? 'bw' : 'color';
+      }
+      return [order.id, fid, label, i];
+    });
+    await query(
+      `INSERT INTO order_files (order_id, file_id, label, sort_order) VALUES ${ofVals}
+       ON CONFLICT (order_id, file_id) DO NOTHING`,
+      ofParams
+    );
+  }
+
+  // 7. Insert per-page specs
   if (pages && pages.length) {
     const pageValues = pages
       .map((p, idx) => `($${idx * 3 + 1}, $${idx * 3 + 2}, $${idx * 3 + 3})`)
@@ -81,13 +105,13 @@ async function createOrder(userId, { vendor_id, file_id, copies, is_double_sided
       `SELECT user_id FROM vendors WHERE id = $1`, [vendor_id]
     );
     if (vendorUserRes.rows[0]) {
-      emitNewOrderToVendor(vendorUserRes.rows[0].user_id, formatOrder(order, pages || []));
+      emitNewOrderToVendor(vendorUserRes.rows[0].user_id, formatOrder(order, pages || [], allFileIds));
     }
   } catch (e) {
     console.error('[socket] Failed to notify vendor:', e.message);
   }
 
-  return formatOrder(order, pages || []);
+  return formatOrder(order, pages || [], allFileIds);
 }
 
 // ── Get all orders for user ───────────────────────────────────────────────────
@@ -95,15 +119,23 @@ async function createOrder(userId, { vendor_id, file_id, copies, is_double_sided
 async function getOrders(userId) {
   const result = await query(
     `SELECT o.*,
-            COALESCE(json_agg(op ORDER BY op.page_number) FILTER (WHERE op.id IS NOT NULL), '[]') AS pages
+            COALESCE(json_agg(DISTINCT jsonb_build_object(
+              'id', op.id, 'page_number', op.page_number, 'print_type', op.print_type
+            )) FILTER (WHERE op.id IS NOT NULL), '[]') AS pages,
+            COALESCE(json_agg(DISTINCT jsonb_build_object(
+              'file_id', ofi.file_id, 'label', ofi.label, 'sort_order', ofi.sort_order,
+              'file_url', fi.file_url, 'file_name', fi.file_name
+            )) FILTER (WHERE ofi.id IS NOT NULL), '[]') AS order_files
        FROM orders o
        LEFT JOIN order_pages op ON op.order_id = o.id
+       LEFT JOIN order_files ofi ON ofi.order_id = o.id
+       LEFT JOIN files fi ON fi.id = ofi.file_id
       WHERE o.user_id = $1
       GROUP BY o.id
       ORDER BY o.created_at DESC`,
     [userId]
   );
-  return result.rows.map((r) => formatOrder(r, r.pages));
+  return result.rows.map((r) => formatOrder(r, r.pages, null, r.order_files));
 }
 
 // ── Get single order ──────────────────────────────────────────────────────────
@@ -111,9 +143,17 @@ async function getOrders(userId) {
 async function getOrderById(userId, orderId) {
   const result = await query(
     `SELECT o.*,
-            COALESCE(json_agg(op ORDER BY op.page_number) FILTER (WHERE op.id IS NOT NULL), '[]') AS pages
+            COALESCE(json_agg(DISTINCT jsonb_build_object(
+              'id', op.id, 'page_number', op.page_number, 'print_type', op.print_type
+            )) FILTER (WHERE op.id IS NOT NULL), '[]') AS pages,
+            COALESCE(json_agg(DISTINCT jsonb_build_object(
+              'file_id', ofi.file_id, 'label', ofi.label, 'sort_order', ofi.sort_order,
+              'file_url', fi.file_url, 'file_name', fi.file_name
+            )) FILTER (WHERE ofi.id IS NOT NULL), '[]') AS order_files
        FROM orders o
        LEFT JOIN order_pages op ON op.order_id = o.id
+       LEFT JOIN order_files ofi ON ofi.order_id = o.id
+       LEFT JOIN files fi ON fi.id = ofi.file_id
       WHERE o.id = $1 AND o.user_id = $2
       GROUP BY o.id`,
     [orderId, userId]
@@ -123,7 +163,7 @@ async function getOrderById(userId, orderId) {
     err.status = 404;
     throw err;
   }
-  return formatOrder(result.rows[0], result.rows[0].pages);
+  return formatOrder(result.rows[0], result.rows[0].pages, null, result.rows[0].order_files);
 }
 
 // ── Cancel order (user can only cancel PENDING orders) ────────────────────────
@@ -145,7 +185,7 @@ async function cancelOrder(userId, orderId) {
 
 // ── Format helper ─────────────────────────────────────────────────────────────
 
-function formatOrder(row, pages) {
+function formatOrder(row, pages, fileIds, orderFiles) {
   return {
     id:             row.id,
     orderNumber:    row.order_number,
@@ -160,6 +200,15 @@ function formatOrder(row, pages) {
       pageNumber: p.page_number,
       printType:  p.print_type,
       isColor:    p.print_type === 'COLOR',
+    })),
+    // Multiple merged files (e.g. one color PDF + one B&W PDF)
+    fileIds: fileIds || (orderFiles || []).map((of) => of.file_id).filter(Boolean),
+    files: (orderFiles || []).map((of) => ({
+      fileId:    of.file_id,
+      label:     of.label || null,
+      sortOrder: of.sort_order ?? 0,
+      fileUrl:   of.file_url || null,
+      fileName:  of.file_name || null,
     })),
   };
 }

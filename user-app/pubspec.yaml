@@ -29,6 +29,7 @@ dependencies:
   # Local storage
   shared_preferences: ^2.5.3
   flutter_secure_storage: ^9.2.4
+  path_provider: ^2.1.5
 
   # File picking
   file_picker: ^8.3.7
@@ -39,6 +40,9 @@ dependencies:
 
   # PDF rendering (local page count + thumbnails)
   pdfx: ^2.8.0
+
+  # PDF creation (for rotating pages before upload)
+  pdf: ^3.11.1
 
   # Real-time
   socket_io_client: ^2.0.3+1
