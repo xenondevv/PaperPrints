@@ -75,7 +75,7 @@ async function createOrder(userId, { vendor_id, file_id, original_file_id, file_
       const fid = allFileIds[i];
       // Determine label based on file name if possible
       let label = null;
-      if (allFileIds.length > 1 || true) { // We'll query DB for file name
+      if (allFileIds.length >= 1) { // We'll query DB for file name
         const fRes = await query(`SELECT file_name FROM files WHERE id = $1`, [fid]);
         if (fRes.rows[0]) {
           const fname = fRes.rows[0].file_name;
