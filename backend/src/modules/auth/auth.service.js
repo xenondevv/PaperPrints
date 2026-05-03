@@ -27,7 +27,7 @@ async function firebaseLogin(idToken) {
 
   // 2. Upsert user — find by firebase_uid, fallback to email
   let result = await query(
-    `SELECT u.*, v.shop_name 
+    `SELECT u.*, v.id as vendor_id, v.shop_name, v.is_verified 
      FROM users u 
      LEFT JOIN vendors v ON v.user_id = u.id 
      WHERE u.firebase_uid = $1 LIMIT 1`,
@@ -39,7 +39,7 @@ async function firebaseLogin(idToken) {
   if (!user) {
     // Try by email (handles existing accounts before Firebase migration)
     result = await query(
-      `SELECT u.*, v.shop_name 
+      `SELECT u.*, v.id as vendor_id, v.shop_name, v.is_verified 
        FROM users u 
        LEFT JOIN vendors v ON v.user_id = u.id 
        WHERE u.email = $1 LIMIT 1`,
@@ -73,6 +73,12 @@ async function firebaseLogin(idToken) {
   const accessToken = signAccessToken(payload);
   const refreshToken = signRefreshToken(payload);
 
+  const vendorObj = user.vendor_id ? {
+    id: user.vendor_id,
+    shop_name: user.shop_name,
+    is_verified: user.is_verified
+  } : null;
+
   return {
     user: {
       id: user.id,
@@ -80,7 +86,7 @@ async function firebaseLogin(idToken) {
       email: user.email,
       photoUrl: user.photo_url || null,
       role: user.role,
-      shopName: user.shop_name || null,
+      vendor: vendorObj
     },
     accessToken,
     refreshToken,
@@ -106,7 +112,7 @@ async function refreshTokens(refreshToken) {
 
   // Always fetch the latest role from DB (handles role upgrades like user → vendor)
   const userRes = await query(`
-    SELECT u.role, u.name, u.email, u.photo_url, v.shop_name 
+    SELECT u.role, u.name, u.email, u.photo_url, v.id as vendor_id, v.shop_name, v.is_verified 
     FROM users u
     LEFT JOIN vendors v ON v.user_id = u.id
     WHERE u.id = $1
@@ -119,6 +125,12 @@ async function refreshTokens(refreshToken) {
   }
   const currentUser = userRes.rows[0];
 
+  const vendorObj = currentUser.vendor_id ? {
+    id: currentUser.vendor_id,
+    shop_name: currentUser.shop_name,
+    is_verified: currentUser.is_verified
+  } : null;
+
   const { signAccessToken: sign } = require('../../config/jwt');
   const newAccess = sign({ id: decoded.id, role: currentUser.role });
   return {
@@ -129,7 +141,7 @@ async function refreshTokens(refreshToken) {
       email: currentUser.email,
       photoUrl: currentUser.photo_url || null,
       role: currentUser.role,
-      shopName: currentUser.shop_name || null,
+      vendor: vendorObj
     },
   };
 }

@@ -17,6 +17,8 @@ const vendorProfileRoutes = require('./modules/vendors/vendor-profile.routes');
 const filesRoutes         = require('./modules/files/files.routes');
 const paymentsRoutes      = require('./modules/payments/payments.routes');
 
+const adminRoutes         = require('./modules/admin/admin.routes');
+
 const app = express();
 
 // ── Global middleware ─────────────────────────────────────────────────────────
@@ -45,6 +47,7 @@ app.use('/api/vendor/orders', vendorOrdersRoutes);
 app.use('/api/vendor/profile', vendorProfileRoutes);
 app.use('/api/files',         filesRoutes);
 app.use('/api/payments',      paymentsRoutes);
+app.use('/api/admin',         adminRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ message: 'Route not found' }));

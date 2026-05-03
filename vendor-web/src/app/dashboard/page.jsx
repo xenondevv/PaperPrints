@@ -25,23 +25,23 @@ function playNewOrderSound() {
     gain.gain.setValueAtTime(0.3, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
     osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.4);
-  } catch {}
+  } catch { }
 }
 
 const FILTER_MAP = {
-  pending:   ['PENDING'],
-  accepted:  ['ACCEPTED'],
+  pending: ['PENDING'],
+  accepted: ['ACCEPTED'],
   completed: ['COMPLETED'],
-  rejected:  ['REJECTED'],
-  history:   ['COMPLETED', 'REJECTED', 'CANCELLED'],
+  rejected: ['REJECTED'],
+  history: ['COMPLETED', 'REJECTED', 'CANCELLED'],
 };
 
 const FILTER_TITLES = {
-  pending:   'Pending Orders',
-  accepted:  'Accepted Orders',
+  pending: 'Pending Orders',
+  accepted: 'Accepted Orders',
   completed: 'Completed Orders',
-  rejected:  'Rejected Orders',
-  history:   'Order History',
+  rejected: 'Rejected Orders',
+  history: 'Order History',
 };
 
 export default function DashboardPageWrapper() {
@@ -196,7 +196,7 @@ function DashboardPage() {
           <svg style={{ width: 12, height: 12, marginRight: 4 }} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
-          {ld === 'pickup' ? '…' : 'PICKED UP'}
+          {ld === 'pickup' ? '…' : 'PICK UP'}
         </ActionBtn>
       );
     }
@@ -278,10 +278,10 @@ function DashboardPage() {
 function ActionBtn({ children, onClick, disabled, variant }) {
   const styles = {
     yellow: { bg: '#FEF9C3', color: '#854D0E', border: '#FDE68A', hoverBg: '#FEF08A' },
-    green:  { bg: '#16A34A', color: '#FFFFFF', border: '#16A34A', hoverBg: '#15803D' },
-    red:    { bg: '#FFFFFF', color: '#B91C1C', border: '#FECACA', hoverBg: '#FEF2F2' },
-    dark:   { bg: '#FFFFFF', color: '#111111', border: '#D1D5DB', hoverBg: '#F9FAFB' },
-    muted:  { bg: '#F3F4F6', color: '#6B7280', border: '#D1D5DB', hoverBg: '#E5E7EB' },
+    green: { bg: '#16A34A', color: '#FFFFFF', border: '#16A34A', hoverBg: '#15803D' },
+    red: { bg: '#FFFFFF', color: '#B91C1C', border: '#FECACA', hoverBg: '#FEF2F2' },
+    dark: { bg: '#FFFFFF', color: '#111111', border: '#D1D5DB', hoverBg: '#F9FAFB' },
+    muted: { bg: '#F3F4F6', color: '#6B7280', border: '#D1D5DB', hoverBg: '#E5E7EB' },
   };
   const c = styles[variant] || styles.dark;
 
@@ -359,8 +359,8 @@ function PickupCodeModal({ order, onConfirm, onCancel, loading }) {
   const [error, setError] = useState('');
 
   const handleSubmit = () => {
-    if (code.length !== 6 || !/^\d+$/.test(code)) {
-      setError('Please enter a valid 6-digit code.');
+    if (code.length !== 4 || !/^\d+$/.test(code)) {
+      setError('Please enter a valid 4-digit code.');
       return;
     }
     setError('');
@@ -386,7 +386,7 @@ function PickupCodeModal({ order, onConfirm, onCancel, loading }) {
         </div>
 
         <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 20, marginTop: 12 }}>
-          Ask the customer to show their <strong>6-digit pickup code</strong> and enter it below to confirm handoff.
+          Ask the customer to show their <strong>4-digit pickup code</strong> and enter it below to confirm handoff.
         </p>
 
         <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 8 }}>
@@ -520,10 +520,10 @@ function OrderDetailModal({ order, onClose }) {
               </p>
               <div style={{ display: 'flex', gap: 12, marginTop: 16, alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', gap: 10, flex: 1 }}>
-                  <FileCard label="B&W FILE" fileId={order.fileId} url={order.bwFile || order.fileUrl} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
-                  <FileCard label="COLOR FILE" fileId={order.fileId} url={order.colorFile || order.fileUrl} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
+                  <FileCard label="B&W FILE" fileId={order.bwFileId || (order.fileIds && order.fileIds.length === 1 ? order.fileIds[0] : null)} url={order.bwFile || order.fileUrl} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
+                  <FileCard label="COLOR FILE" fileId={order.colorFileId || (order.fileIds && order.fileIds.length === 1 ? order.fileIds[0] : null)} url={order.colorFile || order.fileUrl} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
                 </div>
-                <FileCard label="ORIGINAL FILE" fileId={order.fileId} url={order.fileUrl} fileName={order.fileName} variant="outline" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
+                <FileCard label="ORIGINAL FILE" fileId={order.originalFileId || order.fileId} url={order.originalFileUrl || order.fileUrl} fileName={order.fileName} variant="outline" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
               </div>
             </div>
           </Section>

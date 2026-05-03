@@ -138,6 +138,8 @@ export function AuthProvider({ children }) {
 
   const value = {
     user,
+    vendor: user?.vendor || null,
+    isVerified: user?.vendor?.is_verified || false,
     accessToken,
     loading,
     error,
