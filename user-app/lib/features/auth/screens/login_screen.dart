@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
 import 'package:paper_prints_user/features/auth/providers/auth_provider.dart';
+import 'package:paper_prints_user/shared/widgets/paper_prints_loader.dart';
 
 class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
@@ -126,12 +127,11 @@ class _GoogleSignInButton extends StatelessWidget {
                   ],
           ),
           child: loading
-              ? const Center(
+              ? Center(
                   child: SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(
-                        color: AppColors.primary, strokeWidth: 2.5),
+                    child: PaperPrintsLoaderSmall(size: 22),
                   ),
                 )
               : Row(

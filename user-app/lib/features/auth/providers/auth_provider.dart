@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:paper_prints_user/core/constants/app_constants.dart';
 import 'package:paper_prints_user/core/network/repositories.dart';
+import 'package:paper_prints_user/core/services/notification_service.dart';
 
 // ─── Model ───────────────────────────────────────────────────────────────────
 
@@ -88,6 +89,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = UserModel.fromJson(
           jsonDecode(userJson) as Map<String, dynamic>);
       state = AuthState(user: user);
+
+      // Register FCM token on auto-login
+      NotificationService.instance.registerTokenWithBackend();
+      NotificationService.instance.listenForTokenRefresh();
     }
   }
 
@@ -120,6 +125,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // 5. Exchange Firebase ID token for our own JWT pair
       final data = await _repo.firebaseLogin(idToken!);
       await _persist(data);
+
+      // 6. Register FCM token with backend for push notifications
+      await NotificationService.instance.registerTokenWithBackend();
+      NotificationService.instance.listenForTokenRefresh();
     } catch (e, st) {
       debugPrint('🔴 Sign-in error: $e');
       debugPrint('🔴 Stack trace: $st');

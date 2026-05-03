@@ -3,6 +3,7 @@
 const { query } = require('../../config/db');
 const { generatePresignedUrl } = require('../../services/s3.service');
 const { emitOrderAccepted, emitOrderRejected, emitStatusUpdate, emitOrderReady } = require('../../sockets/order.socket');
+const { notifyOrderAccepted, notifyOrderReady, notifyOrderRejected } = require('../../services/fcm.service');
 
 // ── Get all orders for a vendor ────────────────────────────────────────────────
 
@@ -108,16 +109,19 @@ async function acceptOrder(userId, orderId, estimatedTime) {
   }
   const vendorId = vendorRes.rows[0].id;
 
+  const pickupCode = String(Math.floor(1000 + Math.random() * 9000)); // 1000–9999
+
   const result = await query(
     `UPDATE orders
         SET status = 'ACCEPTED',
             estimated_time = $3,
+            qr_code_url = $4,
             updated_at = NOW()
       WHERE id = $1
         AND vendor_id = $2
         AND status = 'PENDING'
     RETURNING *, user_id`,
-    [orderId, vendorId, estimatedTime || null]
+    [orderId, vendorId, estimatedTime || null, pickupCode]
   );
 
   if (!result.rows[0]) {
@@ -127,9 +131,12 @@ async function acceptOrder(userId, orderId, estimatedTime) {
   }
 
   // Emit socket event to notify the customer
-  emitOrderAccepted(result.rows[0].user_id, orderId, estimatedTime);
+  emitOrderAccepted(result.rows[0].user_id, orderId, estimatedTime, pickupCode);
 
-  return { message: 'Order accepted', orderId, status: 'ACCEPTED' };
+  // Send push notification
+  notifyOrderAccepted(result.rows[0].user_id, orderId, estimatedTime);
+
+  return { message: 'Order accepted', orderId, status: 'ACCEPTED', pickupCode };
 }
 
 // ── Reject an order ────────────────────────────────────────────────────────────
@@ -162,6 +169,9 @@ async function rejectOrder(userId, orderId) {
 
   emitOrderRejected(result.rows[0].user_id, orderId);
 
+  // Send push notification
+  notifyOrderRejected(result.rows[0].user_id, orderId);
+
   return { message: 'Order rejected', orderId, status: 'REJECTED' };
 }
 
@@ -181,9 +191,8 @@ async function updateOrderStatus(userId, orderId, newStatus) {
   }
   const vendorId = vendorRes.rows[0].id;
 
-  // Get current order
   const current = await query(
-    `SELECT status, user_id FROM orders WHERE id = $1 AND vendor_id = $2`,
+    `SELECT status, user_id, qr_code_url FROM orders WHERE id = $1 AND vendor_id = $2`,
     [orderId, vendorId]
   );
 
@@ -205,21 +214,25 @@ async function updateOrderStatus(userId, orderId, newStatus) {
   const updateFields = [`status = $3`, `updated_at = NOW()`];
   const params = [orderId, vendorId, newStatus];
 
-  // If marking as READY, generate a 6-digit numeric pickup code
+  // If marking as READY, ensure pickup code exists (it should from ACCEPTED)
+  // or regenerate if needed. We'll leave it as is or generate if missing.
   let pickupCode = null;
   if (newStatus === 'READY') {
-    pickupCode = String(Math.floor(100000 + Math.random() * 900000)); // 100000–999999
-    updateFields.push(`qr_code_url = $4`);
-    params.push(pickupCode);
+    pickupCode = current.rows[0].qr_code_url;
+    if (!pickupCode) {
+      pickupCode = String(Math.floor(1000 + Math.random() * 9000)); // 1000–9999
+      updateFields.push(`qr_code_url = $4`);
+      params.push(pickupCode);
+    }
   }
 
-  const result = await query(
-    `UPDATE orders SET ${updateFields.join(', ')} WHERE id = $1 AND vendor_id = $2 RETURNING *`,
-    params
-  );
+  const queryStr = `UPDATE orders SET ${updateFields.join(', ')} WHERE id = $1 AND vendor_id = $2 RETURNING *`;
+  const result = await query(queryStr, params);
 
   if (newStatus === 'READY') {
     emitOrderReady(current.rows[0].user_id, orderId, result.rows[0].qr_code_url);
+    // Send push notification for pickup ready
+    notifyOrderReady(current.rows[0].user_id, orderId);
   } else {
     emitStatusUpdate(current.rows[0].user_id, orderId, newStatus);
   }

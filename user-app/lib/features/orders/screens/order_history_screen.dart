@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:paper_prints_user/core/constants/app_constants.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
 import 'package:paper_prints_user/features/orders/providers/orders_provider.dart';
+import 'package:paper_prints_user/shared/widgets/paper_prints_loader.dart';
 
 class OrderHistoryScreen extends ConsumerStatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -29,8 +30,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('My Orders')),
       body: state.isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary))
+          ? const PaperPrintsLoader(message: 'Loading orders')
           : state.orders.isEmpty
               ? _empty()
               : RefreshIndicator(

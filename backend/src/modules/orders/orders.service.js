@@ -113,13 +113,17 @@ async function getOrders(userId) {
             COALESCE(json_agg(DISTINCT jsonb_build_object(
               'file_id', ofi.file_id, 'label', ofi.label, 'sort_order', ofi.sort_order,
               'file_url', fi.file_url, 'file_name', fi.file_name
-            )) FILTER (WHERE ofi.id IS NOT NULL), '[]') AS order_files
+            )) FILTER (WHERE ofi.id IS NOT NULL), '[]') AS order_files,
+            jsonb_build_object(
+              'shop_name', v.shop_name, 'phone', v.phone, 'address', v.address, 'lat', v.location_lat, 'lng', v.location_lng
+            ) AS vendor
        FROM orders o
        LEFT JOIN order_pages op ON op.order_id = o.id
        LEFT JOIN order_files ofi ON ofi.order_id = o.id
        LEFT JOIN files fi ON fi.id = ofi.file_id
+       LEFT JOIN vendors v ON v.id = o.vendor_id
       WHERE o.user_id = $1
-      GROUP BY o.id
+      GROUP BY o.id, v.id
       ORDER BY o.created_at DESC`,
     [userId]
   );
@@ -137,13 +141,17 @@ async function getOrderById(userId, orderId) {
             COALESCE(json_agg(DISTINCT jsonb_build_object(
               'file_id', ofi.file_id, 'label', ofi.label, 'sort_order', ofi.sort_order,
               'file_url', fi.file_url, 'file_name', fi.file_name
-            )) FILTER (WHERE ofi.id IS NOT NULL), '[]') AS order_files
+            )) FILTER (WHERE ofi.id IS NOT NULL), '[]') AS order_files,
+            jsonb_build_object(
+              'shop_name', v.shop_name, 'phone', v.phone, 'address', v.address, 'lat', v.location_lat, 'lng', v.location_lng
+            ) AS vendor
        FROM orders o
        LEFT JOIN order_pages op ON op.order_id = o.id
        LEFT JOIN order_files ofi ON ofi.order_id = o.id
        LEFT JOIN files fi ON fi.id = ofi.file_id
+       LEFT JOIN vendors v ON v.id = o.vendor_id
       WHERE o.id = $1 AND o.user_id = $2
-      GROUP BY o.id`,
+      GROUP BY o.id, v.id`,
     [orderId, userId]
   );
   if (!result.rows[0]) {
@@ -198,6 +206,7 @@ function formatOrder(row, pages, fileIds, orderFiles) {
       fileUrl:   of.file_url || null,
       fileName:  of.file_name || null,
     })),
+    vendor: row.vendor || null,
   };
 }
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
 import 'package:paper_prints_user/features/shops/providers/shops_provider.dart';
+import 'package:paper_prints_user/shared/widgets/paper_prints_loader.dart';
 
 class ShopDetailScreen extends ConsumerWidget {
   final String vendorId;
@@ -16,7 +17,7 @@ class ShopDetailScreen extends ConsumerWidget {
     return Scaffold(
       body: shopAsync.when(
         loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary)),
+            child: PaperPrintsLoader(message: 'Loading shop')),
         error: (e, _) => Center(
             child: Text('Error: $e',
                 style: const TextStyle(color: AppColors.error))),

@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:paper_prints_user/core/constants/app_constants.dart';
 import 'package:paper_prints_user/core/network/socket_service.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
 import 'package:paper_prints_user/features/auth/providers/auth_provider.dart';
 import 'package:paper_prints_user/features/orders/providers/orders_provider.dart';
+import 'package:paper_prints_user/shared/widgets/paper_prints_loader.dart';
 
 class OrderDetailScreen extends ConsumerStatefulWidget {
   final String orderId;
@@ -43,6 +45,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
               widget.orderId,
               OrderStatus.accepted,
               estimatedTime: data['estimatedTime']?.toString(),
+              qrCodeUrl: data['qrCode']?.toString(),
             );
       }
     });
@@ -107,59 +110,43 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   child: Container(
                     width: 280,
                     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 36),
-                    decoration: BoxDecoration(
-                      gradient: bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
-                          ? const LinearGradient(
-                              colors: [Color(0xFF0D9488), Color(0xFF059669)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            )
-                          : null,
-                      color: bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
-                          ? null
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 30,
-                            offset: const Offset(0, 10))
-                      ],
-                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
-                              ? Icons.lock_open_rounded
-                              : Icons.tag_rounded,
-                          size: 28,
-                          color: bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
-                              ? Colors.white60
-                              : const Color(0xFF0D9488),
+                        QrImageView(
+                          data: bookingCode,
+                          version: QrVersions.auto,
+                          size: 240,
+                          padding: EdgeInsets.zero,
+                          eyeStyle: const QrEyeStyle(
+                            eyeShape: QrEyeShape.square,
+                            color: Colors.white,
+                          ),
+                          dataModuleStyle: const QrDataModuleStyle(
+                            dataModuleShape: QrDataModuleShape.square,
+                            color: Colors.white,
+                          ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                         Text(
                           bookingCode,
-                          style: TextStyle(
-                            color: bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
-                                ? Colors.white
-                                : const Color(0xFF111111),
-                            fontSize: 48,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 36,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 10,
+                            letterSpacing: 8,
                             fontFamily: 'monospace',
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         Text(
-                          bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
+                          RegExp(r'^\d{4}$').hasMatch(bookingCode)
                               ? 'Your Pickup Code'
                               : 'Booking Code',
                           style: TextStyle(
-                            color: bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
+                            color: RegExp(r'^\d{4}$').hasMatch(bookingCode)
                                 ? Colors.white70
-                                : Colors.black45,
+                                : Colors.white54,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
@@ -255,8 +242,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
     if (state.isLoading || order == null) {
       return const Scaffold(
-        body: Center(
-            child: CircularProgressIndicator(color: AppColors.primary)),
+        body: PaperPrintsLoader(message: 'Loading order'),
       );
     }
 
@@ -328,9 +314,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Text('Booking Code',
-                          style: TextStyle(color: AppColors.textTertiary, fontSize: 11)),
-                      Text(bookingCode,
+                      Text(order.qrCodeUrl != null ? 'Pickup Code' : 'Booking Code',
+                          style: const TextStyle(color: AppColors.textTertiary, fontSize: 11)),
+                      Text(order.qrCodeUrl ?? bookingCode,
                           style: const TextStyle(
                               color: AppColors.textPrimary,
                               fontWeight: FontWeight.w800,
@@ -365,65 +351,31 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                // Pickup Code Card — shows 6-digit code when READY, else booking code
+                // QR Code Card
                 GestureDetector(
                   onTap: () => _showQrFullscreen(context, order.id,
-                      isReady && order.qrCodeUrl != null ? order.qrCodeUrl! : bookingCode),
+                      order.qrCodeUrl ?? bookingCode),
                   child: Hero(
                     tag: 'qr_${order.id}',
                     child: Container(
-                      width: 110,
-                      height: 110,
+                      width: 106,
+                      height: 106,
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        gradient: isReady
-                            ? const LinearGradient(
-                                colors: [Color(0xFF0D9488), Color(0xFF059669)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              )
-                            : null,
-                        color: isReady ? null : AppColors.surface,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: isReady ? Colors.transparent : AppColors.border),
+                        border: Border.all(color: AppColors.border),
                         boxShadow: [
                           BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
+                              color: Colors.black.withValues(alpha: 0.04),
                               blurRadius: 8,
                               offset: const Offset(0, 2))
                         ],
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            isReady ? Icons.lock_open_rounded : Icons.tag_rounded,
-                            size: 18,
-                            color: isReady ? Colors.white70 : AppColors.textTertiary,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            isReady && order.qrCodeUrl != null
-                                ? order.qrCodeUrl!
-                                : bookingCode,
-                            style: TextStyle(
-                              color: isReady ? Colors.white : AppColors.textPrimary,
-                              fontWeight: FontWeight.w900,
-                              fontSize: isReady ? 20 : 18,
-                              letterSpacing: 2,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            isReady ? 'Pickup Code' : 'Tap to expand',
-                            style: TextStyle(
-                              color: isReady ? Colors.white60 : AppColors.textTertiary,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                      child: QrImageView(
+                        data: order.qrCodeUrl ?? bookingCode,
+                        version: QrVersions.auto,
+                        padding: EdgeInsets.zero,
                       ),
                     ),
                   ),
@@ -578,18 +530,25 @@ class _AnimatedStatusBannerState extends State<_AnimatedStatusBanner>
 
   @override
   Widget build(BuildContext context) {
-    final isPending = widget.status == OrderStatus.pending;
+    final isPending = widget.status == OrderStatus.pending ||
+        widget.status == 'PAYMENT_PENDING';
     final isAccepted = widget.status == OrderStatus.accepted;
+    final isProcessing = widget.status == OrderStatus.processing;
     final isReady = widget.status == OrderStatus.ready;
-    final isRejected = OrderStatus.isTerminal(widget.status);
+    final isCompleted = widget.status == OrderStatus.completed;
+    final isTerminal = OrderStatus.isTerminal(widget.status);
 
     if (isPending) {
       return _buildPendingBanner();
     } else if (isAccepted) {
       return _buildAcceptedBanner();
+    } else if (isProcessing) {
+      return _buildProcessingBanner();
     } else if (isReady) {
       return _buildReadyBanner();
-    } else if (isRejected) {
+    } else if (isCompleted) {
+      return _buildCompletedBanner();
+    } else if (isTerminal) {
       return _buildTerminalBanner();
     }
     return _buildGenericBanner();
@@ -704,6 +663,63 @@ class _AnimatedStatusBannerState extends State<_AnimatedStatusBanner>
           const SizedBox(height: 4),
           const Text('Show the QR code at the counter',
               style: TextStyle(color: AppColors.primary, fontSize: 12)),
+        ]),
+      );
+
+  Widget _buildProcessingBanner() => Container(
+        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE3F2FD),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF90CAF9)),
+        ),
+        child: Column(children: [
+          AnimatedBuilder(
+            animation: _pulse,
+            builder: (_, child) => Transform.scale(scale: _pulse.value, child: child),
+            child: Container(
+              width: 64, height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFBBDEFB),
+                border: Border.all(color: const Color(0xFF1976D2), width: 2),
+              ),
+              child: const Icon(Icons.print_rounded,
+                  color: Color(0xFF1976D2), size: 30),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text('Printing in Progress 🖨️',
+              style: TextStyle(
+                  color: Color(0xFF0D47A1),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18)),
+          const SizedBox(height: 6),
+          const Text('Your documents are being printed',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Color(0xFF1565C0), fontSize: 12, height: 1.5)),
+        ]),
+      );
+
+  Widget _buildCompletedBanner() => Container(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE0E0E0)),
+        ),
+        child: Column(children: [
+          const Icon(Icons.check_circle_rounded, color: Color(0xFF4CAF50), size: 48),
+          const SizedBox(height: 12),
+          const Text('Order Completed ✅',
+              style: TextStyle(
+                  color: Color(0xFF2E7D32),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18)),
+          const SizedBox(height: 4),
+          const Text('Your prints have been collected',
+              style: TextStyle(color: Color(0xFF558B2F), fontSize: 12)),
         ]),
       );
 

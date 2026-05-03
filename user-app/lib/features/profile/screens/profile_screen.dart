@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:paper_prints_user/core/network/repositories.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
 import 'package:paper_prints_user/features/auth/providers/auth_provider.dart';
+import 'package:paper_prints_user/shared/widgets/paper_prints_loader.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -439,8 +440,7 @@ class _EditProfileSheet extends StatelessWidget {
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
+                        child: PaperPrintsLoaderSmall(size: 20))
                     : const Text('Save'),
               ),
             ),

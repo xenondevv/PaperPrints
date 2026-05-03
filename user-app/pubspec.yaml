@@ -59,6 +59,8 @@ dependencies:
   flutter_cashfree_pg_sdk: ^2.3.3+50
   share_plus: ^10.1.4
   qr_flutter: ^4.1.0
+  firebase_messaging: ^15.2.10
+  flutter_local_notifications: ^19.5.0
 
 dev_dependencies:
   flutter_test:

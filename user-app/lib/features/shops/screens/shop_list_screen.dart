@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
 import 'package:paper_prints_user/features/shops/providers/shops_provider.dart';
 import 'package:paper_prints_user/shared/widgets/shop_card.dart';
+import 'package:paper_prints_user/shared/widgets/paper_prints_loader.dart';
 
 class ShopListScreen extends ConsumerStatefulWidget {
   const ShopListScreen({super.key});
@@ -85,8 +86,7 @@ class _ShopListScreenState extends ConsumerState<ShopListScreen> {
 
           Expanded(
             child: shopsState.isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary))
+                ? const PaperPrintsLoader(message: 'Finding shops')
                 : filtered.isEmpty
                     ? _empty()
                     : RefreshIndicator(

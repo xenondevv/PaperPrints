@@ -62,4 +62,13 @@ async function updateMe(userId, { name, email }) {
   };
 }
 
-module.exports = { getMe, updateMe };
+// ── POST /api/users/fcm-token ─────────────────────────────────────────────────
+
+async function saveFcmToken(userId, fcmToken) {
+  await query(
+    `UPDATE users SET fcm_token = $2, updated_at = NOW() WHERE id = $1`,
+    [userId, fcmToken]
+  );
+}
+
+module.exports = { getMe, updateMe, saveFcmToken };

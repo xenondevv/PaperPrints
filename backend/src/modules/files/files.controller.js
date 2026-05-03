@@ -24,8 +24,8 @@ async function handleUpload(req, res, next) {
     // Push buffer to S3
     await uploadToS3(buffer, s3Key, mimetype);
 
-    // fileUrl won't strictly be needed but the schema requires it
-    const fileUrl = `https://${env.s3.bucket}.s3.${env.s3.region}.amazonaws.com/${s3Key}`;
+    // Generate a pre-signed URL for immediate access
+    const fileUrl = await generatePresignedUrl(s3Key, 3600);
 
     // Persist to DB using the actual database columns (file_name, file_size_bytes, file_url)
     const result = await query(

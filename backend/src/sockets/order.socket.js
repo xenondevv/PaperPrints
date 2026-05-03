@@ -26,8 +26,8 @@ function setupOrderSockets(io) {
  * @param {string} orderId
  * @param {string|number} estimatedTime  minutes until ready
  */
-function emitOrderAccepted(userId, orderId, estimatedTime) {
-  _io?.to(`user:${userId}`).emit('order_accepted', { orderId, estimatedTime });
+function emitOrderAccepted(userId, orderId, estimatedTime, qrCode) {
+  _io?.to(`user:${userId}`).emit('order_accepted', { orderId, estimatedTime, qrCode });
 }
 
 /**

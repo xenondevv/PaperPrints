@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
+import 'package:paper_prints_user/shared/widgets/paper_prints_loader.dart';
 
 class PdfViewerScreen extends StatefulWidget {
   final String filePath;
@@ -78,10 +79,10 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         builders: PdfViewBuilders<DefaultBuilderOptions>(
           options: const DefaultBuilderOptions(),
           documentLoaderBuilder: (_) => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
+            child: PaperPrintsLoader(message: 'Loading PDF', size: 60),
           ),
           pageLoaderBuilder: (_) => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
+            child: PaperPrintsLoaderSmall(size: 28),
           ),
           errorBuilder: (_, err) => Center(
             child: Text(

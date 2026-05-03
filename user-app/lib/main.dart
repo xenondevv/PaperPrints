@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paper_prints_user/core/router/app_router.dart';
+import 'package:paper_prints_user/core/services/notification_service.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
 import 'package:paper_prints_user/firebase_options.dart';
 
@@ -10,6 +11,10 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize notification service (FCM + local notifications)
+  await NotificationService.instance.init();
+
   runApp(const ProviderScope(child: PaperPrintsApp()));
 }
 

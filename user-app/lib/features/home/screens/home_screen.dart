@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
 import 'package:paper_prints_user/features/auth/providers/auth_provider.dart';
 import 'package:paper_prints_user/features/shops/providers/shops_provider.dart';
+import 'package:paper_prints_user/shared/widgets/paper_prints_loader.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -287,13 +288,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 height: 100,
                 child: shopsState.isLoading
                     ? const Center(
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                              color: AppColors.primary,
-                              strokeWidth: 2),
-                        ),
+                        child: PaperPrintsLoaderSmall(size: 28),
                       )
                     : shopsState.shops.isEmpty
                         ? Padding(

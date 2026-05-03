@@ -18,6 +18,7 @@ import 'package:paper_prints_user/features/shops/providers/shops_provider.dart';
 import 'package:paper_prints_user/features/upload/screens/pdf_viewer_screen.dart';
 import 'package:paper_prints_user/shared/widgets/shop_card.dart';
 import 'package:paper_prints_user/core/services/payment_service.dart';
+import 'package:paper_prints_user/shared/widgets/paper_prints_loader.dart';
 
 // Color mode options matching the screenshot
 enum _ColorMode { colored, bw, autoDetect, manual }
@@ -59,6 +60,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
   // Vendor is loaded from the API
   bool _loadingVendor = false;
+
+  // Full-screen payment overlay
+  String? _paymentOverlayMessage;
 
   @override
   void initState() {
@@ -472,6 +476,12 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         return;
       }
 
+      // Show branded overlay
+      setState(() {
+        _paymentOverlayMessage = 'Preparing your files';
+        _paymentInProgress = true;
+      });
+
       // Merge all files into 1 or 2 PDFs based on color mode,
       // then upload the merged PDF(s) and use those file IDs.
       setState(() {
@@ -487,6 +497,10 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       }
 
       if (fileIds.isEmpty) {
+        setState(() {
+          _paymentOverlayMessage = null;
+          _paymentInProgress = false;
+        });
         _showError('Failed to merge files. Please try again.');
         return;
       }
@@ -494,6 +508,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       debugPrint('Placing order with merged file IDs: $fileIds');
 
       // Step 1: Create the order on the backend
+      setState(() => _paymentOverlayMessage = 'Creating your order');
+
       final order = await ref.read(ordersProvider.notifier).create({
         'vendor_id': _selectedVendor!.id,
         'file_id': fileIds.first,
@@ -506,13 +522,21 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       });
 
       // Step 2: Start Cashfree payment
-      setState(() => _paymentInProgress = true);
+      setState(() => _paymentOverlayMessage = 'Opening payment gateway');
 
       await PaymentService.instance.startPayment(
         orderId: order.id,
+        onVerify: () {
+          if (mounted) {
+            setState(() => _paymentOverlayMessage = 'Verifying payment...');
+          }
+        },
         onSuccess: (result) {
           if (!mounted) return;
-          setState(() => _paymentInProgress = false);
+          setState(() {
+            _paymentInProgress = false;
+            _paymentOverlayMessage = null;
+          });
           debugPrint('Payment successful: $result');
 
           // Navigate directly to the Order Details screen where it will show Waiting for Confirmation
@@ -570,14 +594,20 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         },
         onError: (error) {
           if (!mounted) return;
-          setState(() => _paymentInProgress = false);
+          setState(() {
+            _paymentInProgress = false;
+            _paymentOverlayMessage = null;
+          });
           debugPrint('Payment failed: $error');
           // Navigate to failed screen
           context.push('/payment-failed', extra: error?.toString());
         },
       );
     } catch (e) {
-      setState(() => _paymentInProgress = false);
+      setState(() {
+        _paymentInProgress = false;
+        _paymentOverlayMessage = null;
+      });
       debugPrint('Place order error: $e');
       if (e is DioException) {
         _showError('Failed to place order: ${e.response?.data}');
@@ -828,13 +858,23 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   Widget build(BuildContext context) {
     final orderState = ref.watch(ordersProvider);
 
-    // If no files yet, show the shop selector + file picker step
+    // Base screen content
+    Widget screen;
     if (_files.isEmpty) {
-      return _buildFilePickStep();
+      screen = _buildFilePickStep();
+    } else {
+      screen = _buildOptionsStep(orderState);
     }
 
-    // File selected — show the options screen
-    return _buildOptionsStep(orderState);
+    // Wrap with full-screen payment overlay
+    return Stack(
+      children: [
+        screen,
+        // Full-screen branded overlay during payment
+        if (_paymentOverlayMessage != null)
+          _PaymentOverlay(message: _paymentOverlayMessage!),
+      ],
+    );
   }
 
   // ── Step 1: Pick file & shop ───────────────────────────────────────────────
@@ -867,7 +907,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                 child: Row(
                   children: [
                     SizedBox(width: 20, height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                      child: PaperPrintsLoaderSmall(size: 20)),
                     SizedBox(width: 12),
                     Text('Loading print shop...', style: TextStyle(color: AppColors.textSecondary)),
                   ],
@@ -1482,7 +1522,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       child: Row(children: [
                         SizedBox(width: 18, height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                          child: PaperPrintsLoaderSmall(size: 18)),
                         SizedBox(width: 10),
                         Text('Loading print shop...', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                       ]),
@@ -1580,8 +1620,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
+                            child: PaperPrintsLoaderSmall(size: 20))
                         : const Icon(Icons.payment, size: 18),
                     label: (orderState.isLoading || _paymentInProgress)
                         ? const Text('Processing...')
@@ -2213,4 +2252,80 @@ class _OrientationTile extends StatelessWidget {
           ),
         ),
       );
+}
+
+// ─── Full-screen branded payment overlay ───────────────────────────────────────
+
+class _PaymentOverlay extends StatefulWidget {
+  final String message;
+  const _PaymentOverlay({required this.message});
+
+  @override
+  State<_PaymentOverlay> createState() => _PaymentOverlayState();
+}
+
+class _PaymentOverlayState extends State<_PaymentOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _fadeCtrl;
+  late final Animation<double> _fadeIn;
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    )..forward();
+    _fadeIn = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+  }
+
+  @override
+  void dispose() {
+    _fadeCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fadeIn,
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.94),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const PaperPrintsLoader(
+                size: 64,
+                fullScreen: false,
+              ),
+              const SizedBox(height: 20),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Text(
+                  widget.message,
+                  key: ValueKey(widget.message),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Please don\'t close the app',
+                style: TextStyle(
+                  color: AppColors.textTertiary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

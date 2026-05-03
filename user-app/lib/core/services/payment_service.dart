@@ -21,6 +21,7 @@ class PaymentService {
   // Store callbacks so they survive across the async gap
   Function(Map<String, dynamic>)? _onSuccess;
   Function(String)? _onError;
+  Function()? _onVerify;
   String? _currentOrderId;
 
   /// Initiates the full payment flow for an order.
@@ -28,9 +29,11 @@ class PaymentService {
     required String orderId,
     required Function(Map<String, dynamic> result) onSuccess,
     required Function(String error) onError,
+    Function()? onVerify,
   }) async {
     _onSuccess = onSuccess;
     _onError = onError;
+    _onVerify = onVerify;
     _currentOrderId = orderId;
 
     // 1. Create session on our backend (which calls Cashfree API)
@@ -67,6 +70,7 @@ class PaymentService {
 
   void _handlePaymentSuccess(String cfOrderId) async {
     debugPrint('Cashfree payment completed for cf_order: $cfOrderId');
+    _onVerify?.call();
     try {
       final verifyResult = await _paymentsRepo.verifyPayment(_currentOrderId!);
       

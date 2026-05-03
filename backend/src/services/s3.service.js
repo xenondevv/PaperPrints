@@ -2,8 +2,8 @@
 
 const { PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const s3Client = require('../config/s3');
-const env      = require('../config/env');
+const s3 = require('../config/s3');
+const env = require('../config/env');
 
 const BUCKET = env.s3.bucket;
 
@@ -15,28 +15,27 @@ const BUCKET = env.s3.bucket;
  */
 async function uploadToS3(buffer, s3Key, mimeType) {
   const command = new PutObjectCommand({
-    Bucket:      BUCKET,
-    Key:         s3Key,
-    Body:        buffer,
-    ContentType: mimeType || 'application/octet-stream',
+    Bucket: BUCKET,
+    Key: s3Key,
+    Body: buffer,
+    ContentType: mimeType,
   });
-  await s3Client.send(command);
+  await s3.send(command);
+  console.log(`[S3] Uploaded ${s3Key} to bucket ${BUCKET}`);
 }
 
 /**
- * Generate a pre-signed GET URL valid for `expiresIn` seconds (default 15 min).
- * @param {string} s3Key     - The object key in S3
- * @param {number} expiresIn - Seconds until URL expires (default 900 = 15 min)
- * @returns {Promise<string>} Pre-signed URL
+ * Generate a pre-signed URL for downloading a file from S3.
+ * @param {string} s3Key     - The object key
+ * @param {number} expiresIn - URL validity in seconds (default 900 = 15 min)
+ * @returns {Promise<string>} Pre-signed download URL
  */
 async function generatePresignedUrl(s3Key, expiresIn = 900) {
   const command = new GetObjectCommand({
     Bucket: BUCKET,
-    Key:    s3Key,
-    ResponseContentDisposition: 'inline',
-    ResponseContentType:        'application/pdf',
+    Key: s3Key,
   });
-  return getSignedUrl(s3Client, command, { expiresIn });
+  return getSignedUrl(s3, command, { expiresIn });
 }
 
 module.exports = { uploadToS3, generatePresignedUrl };
