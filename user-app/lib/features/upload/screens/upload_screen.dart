@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -56,42 +57,50 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   final List<Uint8List?> _thumbnails = []; // thumbnails across all files
   bool _renderingThumbs = false;
 
-  // Demo vendor (hardcoded — no network call)
-  static final _demoVendor = VendorModel(
-    id: '04d46a90-dc3b-4387-b351-6c6ed0ec1f66', // ertyu
-    shopName: 'ertyu',
-    address: 'Demo Shop, Local Area',
-    phone: '9999999999',
-    isOpen: true,
-    distanceKm: 0,
-    settings: const VendorSettings(
-      priceBw: 2,
-      priceColor: 10,
-      priceDoubleSided: 1,
-      capabilities: ['BW', 'COLOR'],
-    ),
-  );
+  // Vendor is loaded from the API
+  bool _loadingVendor = false;
 
   @override
   void initState() {
     super.initState();
-    // Pre-select demo vendor by default
-    _selectedVendor = _demoVendor;
-    if (widget.preselectedVendorId != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final shops = ref.read(nearbyShopsProvider).shops;
-        final match =
-            shops.where((s) => s.id == widget.preselectedVendorId).firstOrNull;
-        if (match != null) setState(() => _selectedVendor = match);
-      });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadVendor();
+    });
+  }
+
+  /// Load the first available vendor from the API.
+  /// Tries nearby first, then falls back to a wide radius.
+  Future<void> _loadVendor() async {
+    setState(() => _loadingVendor = true);
+    try {
+      // If a specific vendor is preselected by ID, fetch it directly
+      if (widget.preselectedVendorId != null) {
+        final raw = await VendorsRepository().getById(widget.preselectedVendorId!);
+        final vendor = VendorModel.fromJson(raw);
+        if (mounted) setState(() { _selectedVendor = vendor; _loadingVendor = false; });
+        return;
+      }
+
+      // Try to load nearby shops (radius 50 km, then 1000 km as fallback)
+      for (final radius in [50.0, 1000.0]) {
+        final raw = await VendorsRepository().getNearby(28.6, 77.2, radius);
+        if (raw.isNotEmpty) {
+          final vendor = VendorModel.fromJson(raw.first as Map<String, dynamic>);
+          if (mounted) setState(() { _selectedVendor = vendor; _loadingVendor = false; });
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to load vendor: $e');
     }
+    if (mounted) setState(() => _loadingVendor = false);
   }
 
   /// Initial pick — allows selecting multiple files at once
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.any,
-      withData: false,
+      withData: kIsWeb,
       allowMultiple: true,
     );
     if (result == null || result.files.isEmpty) return;
@@ -109,7 +118,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   Future<void> _addMoreFiles() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.any,
-      withData: false,
+      withData: kIsWeb,
       allowMultiple: true,
     );
     if (result == null || result.files.isEmpty) return;
@@ -132,7 +141,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         _filePageCounts.add(0);
       });
       // Render thumbnails and upload in parallel
-      _renderThumbnails(file.path!, fileIdx, thumbOffset);
+      _renderThumbnails(file, fileIdx, thumbOffset);
       _uploadFileAtIndex(file, fileIdx, thumbOffset);
     }
   }
@@ -140,15 +149,15 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   static const _imageExts = {'jpg','jpeg','png','gif','webp','bmp','tiff'};
 
   /// Render thumbnails for one file; for images reads bytes directly.
-  Future<void> _renderThumbnails(String path, int fileIdx, int thumbOffset) async {
-    final ext = path.split('.').last.toLowerCase();
+  Future<void> _renderThumbnails(PlatformFile file, int fileIdx, int thumbOffset) async {
+    final ext = file.extension?.toLowerCase() ?? 'pdf';
     final isImage = _imageExts.contains(ext);
     final isPdf = ext == 'pdf';
 
     if (isImage) {
       // Read image bytes directly and store as thumbnail
       try {
-        final bytes = await File(path).readAsBytes();
+        final bytes = kIsWeb ? file.bytes! : await File(file.path!).readAsBytes();
         setState(() {
           _filePageCounts[fileIdx] = 1;
           while (_thumbnails.length < thumbOffset + 1) _thumbnails.add(null);
@@ -170,7 +179,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     }
     setState(() => _renderingThumbs = true);
     try {
-      final doc = await PdfDocument.openFile(path);
+      final doc = kIsWeb ? await PdfDocument.openData(file.bytes!) : await PdfDocument.openFile(file.path!);
       final count = doc.pagesCount;
       // Expand _thumbnails list and record count
       setState(() {
@@ -215,8 +224,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     });
     try {
       final record = await FilesRepository().upload(
-        file.path!,
         file.name,
+        filePath: kIsWeb ? null : file.path,
+        bytes: kIsWeb ? file.bytes : null,
         onProgress: (sent, total) =>
             setState(() => _uploadProgress = sent / total),
       );
@@ -284,15 +294,15 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
   /// Renders a specific page from a PDF file as a pw.MemoryImage for embedding
   /// in a merged PDF document.
-  Future<pw.MemoryImage?> _renderPageAsImage(String filePath, int pageNum) async {
-    final ext = filePath.split('.').last.toLowerCase();
+  Future<pw.MemoryImage?> _renderPageAsImage(PlatformFile pFile, int pageNum) async {
+    final ext = pFile.extension?.toLowerCase() ?? 'pdf';
     if (_imageExts.contains(ext)) {
       // For images, just read the bytes directly
-      final bytes = await File(filePath).readAsBytes();
+      final bytes = kIsWeb ? pFile.bytes! : await File(pFile.path!).readAsBytes();
       return pw.MemoryImage(bytes);
     }
     // For PDFs, render the specific page
-    final doc = await PdfDocument.openFile(filePath);
+    final doc = kIsWeb ? await PdfDocument.openData(pFile.bytes!) : await PdfDocument.openFile(pFile.path!);
     try {
       if (pageNum > doc.pagesCount) return null;
       final page = await doc.getPage(pageNum);
@@ -311,28 +321,28 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
   /// Merges specified global page indices into a single PDF document.
   /// [pageIndices] are 1-based global page numbers across all files.
-  /// Returns the temp file path of the merged PDF.
-  Future<String> _buildMergedPdf(List<int> pageIndices, String label) async {
+  /// Returns the bytes of the merged PDF.
+  Future<Uint8List> _buildMergedPdf(List<int> pageIndices, String label) async {
     final pdfDoc = pw.Document();
     final isLandscape = _orientation == _Orientation.landscape;
 
     for (final globalPage in pageIndices) {
       // Map global page number to (file index, local page number)
       int offset = 0;
-      String? filePath;
+      PlatformFile? pFile;
       int localPage = 1;
       for (int f = 0; f < _files.length; f++) {
         final fc = _filePageCounts.length > f ? _filePageCounts[f] : 0;
         if (globalPage <= offset + fc) {
-          filePath = _files[f].path!;
+          pFile = _files[f];
           localPage = globalPage - offset;
           break;
         }
         offset += fc;
       }
-      if (filePath == null) continue;
+      if (pFile == null) continue;
 
-      final image = await _renderPageAsImage(filePath, localPage);
+      final image = await _renderPageAsImage(pFile, localPage);
       if (image == null) continue;
 
       if (isLandscape) {
@@ -364,12 +374,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       }
     }
 
-    final tmpDir = await getTemporaryDirectory();
-    final mergedPath =
-        '${tmpDir.path}/merged_${label}_${DateTime.now().millisecondsSinceEpoch}.pdf';
-    final file = File(mergedPath);
-    await file.writeAsBytes(await pdfDoc.save());
-    return mergedPath;
+    return await pdfDoc.save();
   }
 
   /// Merges all uploaded files into either 1 or 2 PDFs based on the user's
@@ -391,14 +396,13 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       // Single merged PDF — all pages same color mode
       final label = _colorMode == _ColorMode.colored ? 'color' : 'bw';
       debugPrint('Merging ${activePages.length} pages into single $label PDF');
-      final mergedPath = await _buildMergedPdf(activePages, label);
+      final mergedBytes = await _buildMergedPdf(activePages, label);
       final record = await FilesRepository().upload(
-        mergedPath,
         'merged_${label}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        bytes: mergedBytes,
         onProgress: (sent, total) =>
             setState(() => _uploadProgress = sent / total),
       );
-      try { await File(mergedPath).delete(); } catch (_) {}
       return [record['id'].toString()];
     }
 
@@ -425,31 +429,29 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
     if (bwPages.isNotEmpty) {
       debugPrint('Merging ${bwPages.length} B&W pages into PDF');
-      final bwPath = await _buildMergedPdf(bwPages, 'bw');
+      final bwBytes = await _buildMergedPdf(bwPages, 'bw');
       final record = await FilesRepository().upload(
-        bwPath,
         'merged_bw_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        bytes: bwBytes,
         onProgress: (sent, total) {
           step = 0;
           setState(() => _uploadProgress = (step + sent / total) / totalSteps);
         },
       );
-      try { await File(bwPath).delete(); } catch (_) {}
       fileIds.add(record['id'].toString());
     }
 
     if (colorPages.isNotEmpty) {
       debugPrint('Merging ${colorPages.length} Color pages into PDF');
-      final colorPath = await _buildMergedPdf(colorPages, 'color');
+      final colorBytes = await _buildMergedPdf(colorPages, 'color');
       final record = await FilesRepository().upload(
-        colorPath,
         'merged_color_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        bytes: colorBytes,
         onProgress: (sent, total) {
           step = 1;
           setState(() => _uploadProgress = (step + sent / total) / totalSteps);
         },
       );
-      try { await File(colorPath).delete(); } catch (_) {}
       fileIds.add(record['id'].toString());
     }
 
@@ -859,7 +861,19 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5)),
             const SizedBox(height: 8),
-            if (_selectedVendor != null) ...[
+            if (_loadingVendor)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Row(
+                  children: [
+                    SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                    SizedBox(width: 12),
+                    Text('Loading print shop...', style: TextStyle(color: AppColors.textSecondary)),
+                  ],
+                ),
+              )
+            else if (_selectedVendor != null) ...[
               ShopCard(shop: _selectedVendor!, onTap: () {}, compact: true),
               TextButton(
                 onPressed: () => setState(() => _selectedVendor = null),
@@ -1463,7 +1477,17 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                   const SizedBox(height: 8),
 
                   // ── Shop selection (compact) ─────────────────────────
-                  if (_selectedVendor == null)
+                  if (_loadingVendor)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(children: [
+                        SizedBox(width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                        SizedBox(width: 10),
+                        Text('Loading print shop...', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                      ]),
+                    )
+                  else if (_selectedVendor == null)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: GestureDetector(
@@ -1544,6 +1568,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                   child: ElevatedButton.icon(
                     onPressed: (orderState.isLoading ||
                             _paymentInProgress ||
+                            _loadingVendor ||
                             _selectedVendor == null ||
                             _uploadingCount > 0)
                         ? null

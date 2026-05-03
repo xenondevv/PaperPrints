@@ -1,4 +1,4 @@
-import 'package:qr_flutter/qr_flutter.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,7 +27,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     });
   }
 
-  void _connectSocket() {
+  Future<void> _connectSocket() async {
     final userId = ref.read(authProvider).user?.id;
     if (userId == null) return;
 
@@ -35,7 +35,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     // Always clear old listeners first to avoid duplicates
     socket.offOrderEvents();
     // Connect if not already connected
-    socket.connect(userId);
+    await socket.connect(userId);
 
     socket.onOrderAccepted((data) {
       if (data['orderId'] == widget.orderId) {
@@ -106,9 +106,18 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   tag: 'qr_$orderId',
                   child: Container(
                     width: 280,
-                    height: 280,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 36),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      gradient: bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
+                          ? const LinearGradient(
+                              colors: [Color(0xFF0D9488), Color(0xFF059669)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
+                      color: bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
+                          ? null
+                          : Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
@@ -117,32 +126,47 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             offset: const Offset(0, 10))
                       ],
                     ),
-                    padding: const EdgeInsets.all(16),
-                    child: QrImageView(
-                      data: orderId,
-                      version: QrVersions.auto,
-                      eyeStyle: const QrEyeStyle(
-                          eyeShape: QrEyeShape.square,
-                          color: AppColors.textPrimary),
-                      dataModuleStyle: const QrDataModuleStyle(
-                          dataModuleShape: QrDataModuleShape.square,
-                          color: AppColors.textPrimary),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
+                              ? Icons.lock_open_rounded
+                              : Icons.tag_rounded,
+                          size: 28,
+                          color: bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
+                              ? Colors.white60
+                              : const Color(0xFF0D9488),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          bookingCode,
+                          style: TextStyle(
+                            color: bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
+                                ? Colors.white
+                                : const Color(0xFF111111),
+                            fontSize: 48,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 10,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
+                              ? 'Your Pickup Code'
+                              : 'Booking Code',
+                          style: TextStyle(
+                            color: bookingCode.length == 6 && RegExp(r'^\d+$').hasMatch(bookingCode)
+                                ? Colors.white70
+                                : Colors.black45,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  bookingCode,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 8),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Show this at the counter',
-                  style: TextStyle(color: Colors.white60, fontSize: 14),
                 ),
                 const SizedBox(height: 24),
                 Container(
@@ -341,35 +365,65 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                // Local QR code generated from order ID — tap to expand
+                // Pickup Code Card — shows 6-digit code when READY, else booking code
                 GestureDetector(
-                  onTap: () => _showQrFullscreen(context, order.id, bookingCode),
+                  onTap: () => _showQrFullscreen(context, order.id,
+                      isReady && order.qrCodeUrl != null ? order.qrCodeUrl! : bookingCode),
                   child: Hero(
                     tag: 'qr_${order.id}',
                     child: Container(
                       width: 110,
                       height: 110,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        gradient: isReady
+                            ? const LinearGradient(
+                                colors: [Color(0xFF0D9488), Color(0xFF059669)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              )
+                            : null,
+                        color: isReady ? null : AppColors.surface,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(
+                            color: isReady ? Colors.transparent : AppColors.border),
                         boxShadow: [
                           BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.06),
+                              color: Colors.black.withValues(alpha: 0.08),
                               blurRadius: 8,
                               offset: const Offset(0, 2))
                         ],
                       ),
-                      padding: const EdgeInsets.all(8),
-                      child: QrImageView(
-                        data: order.id,
-                        version: QrVersions.auto,
-                        eyeStyle: const QrEyeStyle(
-                            eyeShape: QrEyeShape.square,
-                            color: AppColors.textPrimary),
-                        dataModuleStyle: const QrDataModuleStyle(
-                            dataModuleShape: QrDataModuleShape.square,
-                            color: AppColors.textPrimary),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            isReady ? Icons.lock_open_rounded : Icons.tag_rounded,
+                            size: 18,
+                            color: isReady ? Colors.white70 : AppColors.textTertiary,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isReady && order.qrCodeUrl != null
+                                ? order.qrCodeUrl!
+                                : bookingCode,
+                            style: TextStyle(
+                              color: isReady ? Colors.white : AppColors.textPrimary,
+                              fontWeight: FontWeight.w900,
+                              fontSize: isReady ? 20 : 18,
+                              letterSpacing: 2,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isReady ? 'Pickup Code' : 'Tap to expand',
+                            style: TextStyle(
+                              color: isReady ? Colors.white60 : AppColors.textTertiary,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
