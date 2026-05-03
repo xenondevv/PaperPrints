@@ -28,6 +28,9 @@ async function handleGetById(req, res, next) {
   }
 }
 
+const { query } = require('../../config/db');
+const { sendNewVendorAlert } = require('../../services/email.service');
+
 async function handleRegister(req, res, next) {
   try {
     const { ownerName, shopName, phone, address } = req.body;
@@ -35,6 +38,21 @@ async function handleRegister(req, res, next) {
       return res.status(400).json({ message: 'ownerName, shopName, phone, and address are required' });
     }
     const result = await registerVendor(req.user.id, req.body);
+    
+    // Fetch full data for email
+    try {
+      const vendorData = await getById(result.vendorId);
+      const userRes = await query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+      const userData = userRes.rows[0];
+      
+      // Fire and forget
+      sendNewVendorAlert(vendorData, userData).catch(err => {
+        console.error('Failed to send new vendor alert email:', err);
+      });
+    } catch (err) {
+      console.error('Error fetching data for vendor alert email:', err);
+    }
+    
     res.status(201).json(result);
   } catch (err) {
     next(err);
