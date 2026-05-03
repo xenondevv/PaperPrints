@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:paper_prints_user/core/constants/app_constants.dart';
 import 'package:paper_prints_user/core/network/socket_service.dart';
@@ -325,18 +326,13 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                               fontSize: 22)),
                     ],
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const Text('Booking Code',
-                          style: TextStyle(color: AppColors.textTertiary, fontSize: 11)),
-                      Text(bookingCode,
-                          style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 24,
-                              letterSpacing: 4)),
-                    ],
+                  // Dummy QR code in place of Booking Code
+                  QrImageView(
+                    data: bookingCode,
+                    version: QrVersions.auto,
+                    size: 64,
+                    gapless: false,
+                    foregroundColor: AppColors.primary,
                   ),
                 ],
               ),

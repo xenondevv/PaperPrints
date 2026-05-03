@@ -183,7 +183,7 @@ class _ShopDetailBody extends StatelessWidget {
               // CTA
               ElevatedButton.icon(
                 onPressed: shop.isOpen
-                    ? () => context.push('/upload',
+                    ? () => context.go('/upload',
                         extra: {'vendorId': shop.id})
                     : null,
                 icon: const Icon(Icons.cloud_upload_outlined),

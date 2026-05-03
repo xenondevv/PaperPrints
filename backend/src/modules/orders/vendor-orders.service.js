@@ -168,8 +168,8 @@ async function rejectOrder(userId, orderId) {
 // ── Update order status ────────────────────────────────────────────────────────
 
 const VALID_TRANSITIONS = {
-  ACCEPTED:   ['READY'],
-  READY:      ['COMPLETED'],
+  ACCEPTED: ['READY'],
+  READY: ['COMPLETED'],
 };
 
 async function updateOrderStatus(userId, orderId, newStatus) {
@@ -205,10 +205,10 @@ async function updateOrderStatus(userId, orderId, newStatus) {
   const updateFields = [`status = $3`, `updated_at = NOW()`];
   const params = [orderId, vendorId, newStatus];
 
-  // If marking as READY, generate a 6-digit numeric pickup code
+  // If marking as READY, generate a 4-digit numeric pickup code
   let pickupCode = null;
   if (newStatus === 'READY') {
-    pickupCode = String(Math.floor(100000 + Math.random() * 900000)); // 100000–999999
+    pickupCode = String(Math.floor(1000 + Math.random() * 9000)); // 1000–9999
     updateFields.push(`qr_code_url = $4`);
     params.push(pickupCode);
   }
@@ -290,41 +290,47 @@ async function formatVendorOrder(row) {
   const orderFiles = row.order_files || [];
 
   return {
-    id:             row.id,
-    orderNumber:    row.order_number,
-    status:         row.status,
-    copies:         row.copies,
-    isDoubleSided:  row.is_double_sided,
-    totalPrice:     parseFloat(row.total_price),
-    estimatedTime:  row.estimated_time ? String(row.estimated_time) : null,
-    qrCodeUrl:      row.qr_code_url || null,
-    createdAt:      row.created_at,
-    updatedAt:      row.updated_at,
+    id: row.id,
+    orderNumber: row.order_number,
+    status: row.status,
+    copies: row.copies,
+    isDoubleSided: row.is_double_sided,
+    totalPrice: parseFloat(row.total_price),
+    estimatedTime: row.estimated_time ? String(row.estimated_time) : null,
+    qrCodeUrl: row.qr_code_url || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
     // Customer info
-    customerName:   row.customer_name || null,
-    customerEmail:  row.customer_email || null,
-    customerPhoto:  row.customer_photo || null,
-    userId:         row.user_id,
+    customerName: row.customer_name || null,
+    customerEmail: row.customer_email || null,
+    customerPhoto: row.customer_photo || null,
+    userId: row.user_id,
     // Primary file info (backward compat)
-    fileId:         row.file_id || null,
-    fileName:       row.file_name || null,
-    fileUrl:        signedFileUrl || row.file_url || null,
-    signedFileUrl:  signedFileUrl,
-    totalPages:     row.file_total_pages || 0,
+    fileId: row.file_id || null,
+    fileName: row.file_name || null,
+    fileUrl: signedFileUrl || row.file_url || null,
+    signedFileUrl: signedFileUrl,
+    totalPages: row.file_total_pages || 0,
     // Per-page specs
     pages: (row.pages || []).map((p) => ({
       pageNumber: p.page_number,
-      printType:  p.print_type,
-      isColor:    p.print_type === 'COLOR',
+      printType: p.print_type,
+      isColor: p.print_type === 'COLOR',
     })),
     // All merged files attached to this order
     fileIds: orderFiles.map((of) => of.file_id).filter(Boolean),
+    bwFileId: orderFiles.find((of) => of.label === 'bw')?.file_id || null,
+    colorFileId: orderFiles.find((of) => of.label === 'color')?.file_id || null,
+    bwFile: orderFiles.find((of) => of.label === 'bw')?.file_url || null, // Note: vendor dashboard resolves presigned URLs dynamically using fileId
+    colorFile: orderFiles.find((of) => of.label === 'color')?.file_url || null,
+    originalFileId: row.file_id || null,
+    originalFileUrl: signedFileUrl || row.file_url || null,
     files: orderFiles.map((of) => ({
-      fileId:    of.file_id,
-      label:     of.label || null,
+      fileId: of.file_id,
+      label: of.label || null,
       sortOrder: of.sort_order ?? 0,
-      fileUrl:   of.file_url || null,
-      fileName:  of.file_name || null,
+      fileUrl: of.file_url || null,
+      fileName: of.file_name || null,
     })),
   };
 }
