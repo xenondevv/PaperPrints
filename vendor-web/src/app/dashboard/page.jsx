@@ -11,7 +11,7 @@ import StatusBadge from '../../components/StatusBadge';
 import NotificationToast, { useNotifications } from '../../components/NotificationToast';
 import useOrders from '../../hooks/useOrders';
 import useSocket from '../../hooks/useSocket';
-import { acceptOrder as apiAcceptOrder, rejectOrder as apiRejectOrder, updateOrderStatus, fetchVendorOrderById } from '../../lib/api';
+import { acceptOrder as apiAcceptOrder, rejectOrder as apiRejectOrder, updateOrderStatus, fetchVendorOrderById, getFileSignedUrl } from '../../lib/api';
 
 function playNewOrderSound() {
   try {
@@ -335,7 +335,18 @@ function CompleteOrderModal({ order, onConfirm, onCancel, loading }) {
 /* ── Order Detail Modal (inline dialog) ────────────────────────────────────── */
 
 function OrderDetailModal({ order, onClose }) {
-  const handlePrint = async (url) => {
+  // Resolve a pre-signed URL for a file — handles the S3 private bucket
+  const resolveUrl = async (fileId, fallbackUrl) => {
+    if (fileId) {
+      try {
+        return await getFileSignedUrl(fileId);
+      } catch { /* fall through to raw url */ }
+    }
+    return fallbackUrl || null;
+  };
+
+  const handlePrint = async (fileId, fallbackUrl) => {
+    const url = await resolveUrl(fileId, fallbackUrl);
     if (!url) return;
     try {
       const resp = await fetch(url);
@@ -352,11 +363,17 @@ function OrderDetailModal({ order, onClose }) {
     } catch { window.open(url, '_blank'); }
   };
 
-  const handleDownload = (url, fileName) => {
+  const handleDownload = async (fileId, fallbackUrl, fileName) => {
+    const url = await resolveUrl(fileId, fallbackUrl);
     if (!url) return;
     const a = document.createElement('a');
     a.href = url; a.download = fileName || 'document.pdf'; a.target = '_blank';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+
+  const handleOpen = async (fileId, fallbackUrl) => {
+    const url = await resolveUrl(fileId, fallbackUrl);
+    if (url) window.open(url, '_blank');
   };
 
   return (
@@ -402,10 +419,10 @@ function OrderDetailModal({ order, onClose }) {
               </p>
               <div style={{ display: 'flex', gap: 12, marginTop: 16, alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', gap: 10, flex: 1 }}>
-                  <FileCard label="B&W FILE" url={order.bwFile || order.fileUrl} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} />
-                  <FileCard label="COLOR FILE" url={order.colorFile || order.fileUrl} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} />
+                  <FileCard label="B&W FILE" fileId={order.fileId} url={order.bwFile || order.fileUrl} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
+                  <FileCard label="COLOR FILE" fileId={order.fileId} url={order.colorFile || order.fileUrl} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
                 </div>
-                <FileCard label="ORIGINAL FILE" url={order.fileUrl} fileName={order.fileName} variant="outline" onPrint={handlePrint} onDownload={handleDownload} />
+                <FileCard label="ORIGINAL FILE" fileId={order.fileId} url={order.fileUrl} fileName={order.fileName} variant="outline" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
               </div>
             </div>
           </Section>
@@ -459,11 +476,12 @@ function Section({ title, children, noBorder }) {
 
 /* ── File Card ─────────────────────────────────────────────────────────────── */
 
-function FileCard({ label, url, fileName, variant, onPrint, onDownload }) {
+function FileCard({ label, fileId, url, fileName, variant, onPrint, onDownload, onOpen }) {
   const isSolid = variant === 'solid';
+  const hasFile = !!(fileId || url);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-      <button onClick={() => url && window.open(url, '_blank')} disabled={!url}
+      <button onClick={() => hasFile && onOpen(fileId, url)} disabled={!hasFile}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '8px 16px', borderRadius: 6,
@@ -471,7 +489,7 @@ function FileCard({ label, url, fileName, variant, onPrint, onDownload }) {
           background: isSolid ? '#0D9488' : '#FFFFFF',
           color: isSolid ? '#FFFFFF' : '#0F766E',
           border: isSolid ? '1px solid #0D9488' : '1.5px solid #0D9488',
-          cursor: url ? 'pointer' : 'default', opacity: url ? 1 : 0.4, whiteSpace: 'nowrap',
+          cursor: hasFile ? 'pointer' : 'default', opacity: hasFile ? 1 : 0.4, whiteSpace: 'nowrap',
         }}>
         <svg style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -479,25 +497,25 @@ function FileCard({ label, url, fileName, variant, onPrint, onDownload }) {
         {label}
       </button>
       <div style={{ display: 'flex', gap: 4 }}>
-        <button onClick={() => onPrint(url)} disabled={!url}
+        <button onClick={() => onPrint(fileId, url)} disabled={!hasFile}
           style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '4px 10px', borderRadius: 4,
             fontSize: 10, fontWeight: 500, color: '#6B7280',
             background: '#F3F4F6', border: '1px solid #E5E7EB',
-            cursor: url ? 'pointer' : 'default', opacity: url ? 1 : 0.4,
+            cursor: hasFile ? 'pointer' : 'default', opacity: hasFile ? 1 : 0.4,
           }}>
           <svg style={{ width: 11, height: 11 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
           PRINT
         </button>
-        <button onClick={() => onDownload(url, fileName)} disabled={!url}
+        <button onClick={() => onDownload(fileId, url, fileName)} disabled={!hasFile}
           style={{
             display: 'flex', alignItems: 'center',
             padding: '4px 8px', borderRadius: 4,
             background: '#F3F4F6', border: '1px solid #E5E7EB',
-            color: '#6B7280', cursor: url ? 'pointer' : 'default', opacity: url ? 1 : 0.4,
+            color: '#6B7280', cursor: hasFile ? 'pointer' : 'default', opacity: hasFile ? 1 : 0.4,
           }}>
           <svg style={{ width: 11, height: 11 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

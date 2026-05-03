@@ -9,6 +9,7 @@ const {
   handleAccept,
   handleReject,
   handleStatusUpdate,
+  handleGetFileUrl,
 } = require('./vendor-orders.controller');
 
 const router = Router();
@@ -20,6 +21,9 @@ router.get('/', handleGetAll);
 
 // GET    /api/vendor/orders/:id      — single order detail
 router.get('/:id', handleGetById);
+
+// GET    /api/vendor/orders/:id/file — get a fresh pre-signed download URL for the PDF
+router.get('/:id/file', handleGetFileUrl);
 
 // PATCH  /api/vendor/orders/:id/accept  — accept with estimated time
 router.patch('/:id/accept', handleAccept);

@@ -1,6 +1,7 @@
 'use strict';
 
 const { query } = require('../../config/db');
+const { generatePresignedUrl } = require('../../services/s3.service');
 const { emitOrderAccepted, emitOrderRejected, emitStatusUpdate, emitOrderReady } = require('../../sockets/order.socket');
 
 // ── Get all orders for a vendor ────────────────────────────────────────────────
@@ -38,7 +39,7 @@ async function getVendorOrders(userId) {
     [vendorId]
   );
 
-  return result.rows.map(formatVendorOrder);
+  return Promise.all(result.rows.map(formatVendorOrder));
 }
 
 // ── Get single order for vendor ────────────────────────────────────────────────
@@ -77,7 +78,7 @@ async function getVendorOrderById(userId, orderId) {
     throw err;
   }
 
-  return formatVendorOrder(result.rows[0]);
+  return await formatVendorOrder(result.rows[0]);
 }
 
 // ── Accept an order ────────────────────────────────────────────────────────────
@@ -210,7 +211,17 @@ async function updateOrderStatus(userId, orderId, newStatus) {
 
 // ── Format helper ──────────────────────────────────────────────────────────────
 
-function formatVendorOrder(row) {
+async function formatVendorOrder(row) {
+  // Generate a pre-signed S3 URL so the vendor can view/print the PDF
+  let signedFileUrl = null;
+  if (row.s3_key) {
+    try {
+      signedFileUrl = await generatePresignedUrl(row.s3_key, 3600); // 1 hour
+    } catch (err) {
+      console.warn('[vendor-orders] Failed to generate signed URL:', err.message);
+    }
+  }
+
   return {
     id:             row.id,
     orderNumber:    row.order_number,
@@ -228,8 +239,10 @@ function formatVendorOrder(row) {
     customerPhoto:  row.customer_photo || null,
     userId:         row.user_id,
     // File info
+    fileId:         row.file_id || null,
     fileName:       row.file_name || null,
-    fileUrl:        row.file_url || null,
+    fileUrl:        signedFileUrl || row.file_url || null,
+    signedFileUrl:  signedFileUrl,
     totalPages:     row.file_total_pages || 0,
     // Per-page specs
     pages: (row.pages || []).map((p) => ({
@@ -240,10 +253,48 @@ function formatVendorOrder(row) {
   };
 }
 
+// ── Get a fresh signed URL for an order's file ────────────────────────────────
+
+async function getOrderFileUrl(userId, orderId) {
+  const vendorRes = await query(`SELECT id FROM vendors WHERE user_id = $1`, [userId]);
+  if (!vendorRes.rows[0]) {
+    const err = new Error('Vendor profile not found');
+    err.status = 404;
+    throw err;
+  }
+  const vendorId = vendorRes.rows[0].id;
+
+  const result = await query(
+    `SELECT o.id, f.s3_key, f.file_name
+       FROM orders o
+       LEFT JOIN files f ON f.id = o.file_id
+      WHERE o.id = $1 AND o.vendor_id = $2`,
+    [orderId, vendorId]
+  );
+
+  if (!result.rows[0]) {
+    const err = new Error('Order not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const { s3_key, file_name } = result.rows[0];
+  if (!s3_key) {
+    const err = new Error('No file attached to this order');
+    err.status = 404;
+    throw err;
+  }
+
+  const signed_url = await generatePresignedUrl(s3_key, 3600); // 1 hour
+
+  return { signed_url, file_name };
+}
+
 module.exports = {
   getVendorOrders,
   getVendorOrderById,
   acceptOrder,
   rejectOrder,
   updateOrderStatus,
+  getOrderFileUrl,
 };

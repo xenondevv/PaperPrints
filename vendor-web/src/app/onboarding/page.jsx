@@ -51,8 +51,19 @@ export default function OnboardingPage() {
         window.location.href = '/dashboard';
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to register vendor profile.');
-      setLoading(false);
+      const errMessage = err.response?.data?.message || '';
+      if (errMessage === 'User is already registered as a vendor') {
+        // User already has a vendor profile, just their local role is outdated.
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          router.push('/dashboard');
+        } else {
+          window.location.href = '/dashboard';
+        }
+      } else {
+        setError(errMessage || 'Failed to register vendor profile.');
+        setLoading(false);
+      }
     }
   };
 

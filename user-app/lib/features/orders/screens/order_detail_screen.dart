@@ -32,6 +32,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     if (userId == null) return;
 
     final socket = SocketService.instance;
+    // Always clear old listeners first to avoid duplicates
+    socket.offOrderEvents();
+    // Connect if not already connected
     socket.connect(userId);
 
     socket.onOrderAccepted((data) {

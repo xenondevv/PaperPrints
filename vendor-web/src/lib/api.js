@@ -53,6 +53,13 @@ api.interceptors.response.use(
   }
 );
 
+// ── Files API ──────────────────────────────────────────────────────────────────
+
+export async function getFileSignedUrl(fileId) {
+  const res = await api.get(`/files/${fileId}/download`);
+  return res.data.signed_url;
+}
+
 // ── Vendor Orders API ──────────────────────────────────────────────────────────
 
 export async function fetchVendorOrders() {

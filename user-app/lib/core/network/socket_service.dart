@@ -13,33 +13,37 @@ class SocketService {
   bool get isConnected => _socket?.connected ?? false;
 
   /// Connect to the server and join the user's personal room.
+  /// Safe to call multiple times — skips reconnect if already connected.
   Future<void> connect(String userId) async {
-    if (isConnected) return;
-
     final token = await _storage.read(key: AppConstants.keyAccessToken);
 
-    _socket = io.io(
-      AppConstants.socketUrl,
-      io.OptionBuilder()
-          .setTransports(['websocket'])
-          .disableAutoConnect()
-          .setAuth({'token': token})
-          .build(),
-    );
+    if (!isConnected) {
+      _socket = io.io(
+        AppConstants.socketUrl,
+        io.OptionBuilder()
+            .setTransports(['websocket'])
+            .disableAutoConnect()
+            .setAuth({'token': token})
+            .build(),
+      );
 
-    _socket!.connect();
+      _socket!.connect();
 
-    _socket!.onConnect((_) {
+      _socket!.onConnect((_) {
+        _socket!.emit('join_room', {'role': 'user', 'userId': userId});
+      });
+
+      _socket!.onDisconnect((_) {
+        // Will auto-reconnect via socket_io_client defaults
+      });
+
+      _socket!.onConnectError((err) {
+        // Non-fatal — app works in offline/polling mode
+      });
+    } else {
+      // Already connected — just re-join the room in case it was lost
       _socket!.emit('join_room', {'role': 'user', 'userId': userId});
-    });
-
-    _socket!.onDisconnect((_) {
-      // Will auto-reconnect via socket_io_client defaults
-    });
-
-    _socket!.onConnectError((err) {
-      // Non-fatal — app works in offline/polling mode
-    });
+    }
   }
 
   void disconnect() {
