@@ -5,20 +5,29 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 
 export default function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
+  const { user, vendor, isVerified, loading } = useAuth();
   const router = useRouter();
 
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+
+    if (!user) {
       router.replace('/login');
-    } else if (!loading && user && user.role !== 'vendor' && pathname !== '/onboarding') {
+      return;
+    }
+
+    const hasVendorProfile = user.role === 'vendor' || vendor != null;
+
+    if (!hasVendorProfile && pathname !== '/onboarding') {
       router.replace('/onboarding');
-    } else if (!loading && user && user.role === 'vendor' && pathname === '/onboarding') {
+    } else if (hasVendorProfile && !isVerified && pathname !== '/pending') {
+      router.replace('/pending');
+    } else if (hasVendorProfile && isVerified && (pathname === '/onboarding' || pathname === '/pending')) {
       router.replace('/dashboard');
     }
-  }, [user, loading, router, pathname]);
+  }, [user, vendor, isVerified, loading, router, pathname]);
 
   if (loading) {
     return (
