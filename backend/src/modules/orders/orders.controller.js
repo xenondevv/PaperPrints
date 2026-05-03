@@ -4,11 +4,11 @@ const { createOrder, getOrders, getOrderById, cancelOrder } = require('./orders.
 
 async function handleCreate(req, res, next) {
   try {
-    const { vendor_id, file_id, copies, is_double_sided, pages, orientation } = req.body;
-    if (!vendor_id || !file_id) {
-      return res.status(400).json({ message: 'vendor_id and file_id are required' });
+    const { vendor_id, file_id, file_ids, copies, is_double_sided, pages, orientation } = req.body;
+    if (!vendor_id || (!file_id && (!file_ids || file_ids.length === 0))) {
+      return res.status(400).json({ message: 'vendor_id and file_id (or file_ids) are required' });
     }
-    const order = await createOrder(req.user.id, { vendor_id, file_id, copies, is_double_sided, pages: pages || [], orientation });
+    const order = await createOrder(req.user.id, { vendor_id, file_id, file_ids, copies, is_double_sided, pages: pages || [], orientation });
     res.status(201).json({ order });
   } catch (err) {
     next(err);

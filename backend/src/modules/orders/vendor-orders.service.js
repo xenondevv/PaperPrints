@@ -28,11 +28,19 @@ async function getVendorOrders(userId) {
             f.file_url,
             f.total_pages AS file_total_pages,
             f.s3_key,
-            COALESCE(json_agg(op ORDER BY op.page_number) FILTER (WHERE op.id IS NOT NULL), '[]') AS pages
+            COALESCE(json_agg(DISTINCT jsonb_build_object(
+              'id', op.id, 'page_number', op.page_number, 'print_type', op.print_type
+            )) FILTER (WHERE op.id IS NOT NULL), '[]') AS pages,
+            COALESCE(json_agg(DISTINCT jsonb_build_object(
+              'file_id', ofi.file_id, 'label', ofi.label, 'sort_order', ofi.sort_order,
+              'file_url', fi2.file_url, 'file_name', fi2.file_name
+            )) FILTER (WHERE ofi.id IS NOT NULL), '[]') AS order_files
        FROM orders o
        LEFT JOIN users u ON u.id = o.user_id
        LEFT JOIN files f ON f.id = o.file_id
        LEFT JOIN order_pages op ON op.order_id = o.id
+       LEFT JOIN order_files ofi ON ofi.order_id = o.id
+       LEFT JOIN files fi2 ON fi2.id = ofi.file_id
       WHERE o.vendor_id = $1
       GROUP BY o.id, u.name, u.email, u.photo_url, f.file_name, f.file_url, f.total_pages, f.s3_key
       ORDER BY o.created_at DESC`,
@@ -62,11 +70,19 @@ async function getVendorOrderById(userId, orderId) {
             f.file_url,
             f.total_pages AS file_total_pages,
             f.s3_key,
-            COALESCE(json_agg(op ORDER BY op.page_number) FILTER (WHERE op.id IS NOT NULL), '[]') AS pages
+            COALESCE(json_agg(DISTINCT jsonb_build_object(
+              'id', op.id, 'page_number', op.page_number, 'print_type', op.print_type
+            )) FILTER (WHERE op.id IS NOT NULL), '[]') AS pages,
+            COALESCE(json_agg(DISTINCT jsonb_build_object(
+              'file_id', ofi.file_id, 'label', ofi.label, 'sort_order', ofi.sort_order,
+              'file_url', fi2.file_url, 'file_name', fi2.file_name
+            )) FILTER (WHERE ofi.id IS NOT NULL), '[]') AS order_files
        FROM orders o
        LEFT JOIN users u ON u.id = o.user_id
        LEFT JOIN files f ON f.id = o.file_id
        LEFT JOIN order_pages op ON op.order_id = o.id
+       LEFT JOIN order_files ofi ON ofi.order_id = o.id
+       LEFT JOIN files fi2 ON fi2.id = ofi.file_id
       WHERE o.id = $1 AND o.vendor_id = $2
       GROUP BY o.id, u.name, u.email, u.photo_url, f.file_name, f.file_url, f.total_pages, f.s3_key`,
     [orderId, vendorId]
@@ -222,6 +238,8 @@ async function formatVendorOrder(row) {
     }
   }
 
+  const orderFiles = row.order_files || [];
+
   return {
     id:             row.id,
     orderNumber:    row.order_number,
@@ -238,7 +256,7 @@ async function formatVendorOrder(row) {
     customerEmail:  row.customer_email || null,
     customerPhoto:  row.customer_photo || null,
     userId:         row.user_id,
-    // File info
+    // Primary file info (backward compat)
     fileId:         row.file_id || null,
     fileName:       row.file_name || null,
     fileUrl:        signedFileUrl || row.file_url || null,
@@ -249,6 +267,15 @@ async function formatVendorOrder(row) {
       pageNumber: p.page_number,
       printType:  p.print_type,
       isColor:    p.print_type === 'COLOR',
+    })),
+    // All merged files attached to this order
+    fileIds: orderFiles.map((of) => of.file_id).filter(Boolean),
+    files: orderFiles.map((of) => ({
+      fileId:    of.file_id,
+      label:     of.label || null,
+      sortOrder: of.sort_order ?? 0,
+      fileUrl:   of.file_url || null,
+      fileName:  of.file_name || null,
     })),
   };
 }

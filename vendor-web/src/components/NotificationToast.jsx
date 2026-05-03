@@ -75,11 +75,31 @@ function ToastItem({ notification, onDismiss }) {
 export function useNotifications() {
   const [notifications, setNotifications] = useState([]);
 
+  useEffect(() => {
+    // Request permission for system notifications on load
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
   const addNotification = useCallback((data) => {
     const id = Date.now() + Math.random();
     setNotifications((prev) => [...prev, {
       id, customerName: data.customerName, orderNumber: data.orderNumber, totalPrice: data.totalPrice,
     }]);
+
+    // Show System Notification if backgrounded or minimized
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      // We only want to spam system notifications if the tab is hidden to avoid double notifying
+      if (document.hidden) {
+        new Notification('New Order Received!', {
+          body: `${data.customerName || 'Customer'} placed an order (#${data.orderNumber}).`,
+          icon: '/favicon.ico', // fallback icon
+        });
+      }
+    }
   }, []);
 
   const dismissNotification = useCallback((id) => {
