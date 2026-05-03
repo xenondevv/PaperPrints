@@ -11,7 +11,7 @@ import StatusBadge from '../../components/StatusBadge';
 import NotificationToast, { useNotifications } from '../../components/NotificationToast';
 import useOrders from '../../hooks/useOrders';
 import useSocket from '../../hooks/useSocket';
-import { acceptOrder as apiAcceptOrder, rejectOrder as apiRejectOrder, updateOrderStatus, fetchVendorOrderById, getFileSignedUrl } from '../../lib/api';
+import { acceptOrder as apiAcceptOrder, rejectOrder as apiRejectOrder, updateOrderStatus, verifyPickupCode, fetchVendorOrderById, getFileSignedUrl } from '../../lib/api';
 
 function playNewOrderSound() {
   try {
@@ -60,6 +60,7 @@ function DashboardPage() {
   const { notifications, addNotification, dismissNotification } = useNotifications();
   const [acceptModalOrder, setAcceptModalOrder] = useState(null);
   const [completeModalOrder, setCompleteModalOrder] = useState(null);
+  const [pickupModalOrder, setPickupModalOrder] = useState(null);
   const [viewOrder, setViewOrder] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState({});
@@ -112,15 +113,25 @@ function DashboardPage() {
     finally { setActionLoading(p => ({ ...p, [orderId]: null })); }
   }, [completeModalOrder, updateOrder]);
 
-  // Picked Up → COMPLETED
-  const handlePickedUp = useCallback(async (order) => {
-    setActionLoading(p => ({ ...p, [order.id]: 'pickup' }));
+  // Picked Up → open code-verify modal
+  const handlePickedUp = useCallback((order) => {
+    setPickupModalOrder(order);
+  }, []);
+
+  // Verify pickup code → COMPLETED
+  const handleVerifyPickup = useCallback(async (code) => {
+    if (!pickupModalOrder) return;
+    const orderId = pickupModalOrder.id;
+    setActionLoading(p => ({ ...p, [orderId]: 'pickup' }));
     try {
-      await updateOrderStatus(order.id, 'COMPLETED');
-      updateOrder(order.id, { status: 'COMPLETED' });
-    } catch (err) { alert(err.response?.data?.message || 'Failed'); }
-    finally { setActionLoading(p => ({ ...p, [order.id]: null })); }
-  }, [updateOrder]);
+      await verifyPickupCode(orderId, code);
+      updateOrder(orderId, { status: 'COMPLETED' });
+      setPickupModalOrder(null);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Invalid code. Please try again.');
+    }
+    finally { setActionLoading(p => ({ ...p, [orderId]: null })); }
+  }, [pickupModalOrder, updateOrder]);
 
   // View Order → open inline modal
   const handleViewOrder = useCallback(async (order) => {
@@ -211,6 +222,15 @@ function DashboardPage() {
             onConfirm={handleCompleteOrder}
             onCancel={() => setCompleteModalOrder(null)}
             loading={actionLoading[completeModalOrder.id] === 'complete'}
+          />
+        )}
+
+        {pickupModalOrder && (
+          <PickupCodeModal
+            order={pickupModalOrder}
+            onConfirm={handleVerifyPickup}
+            onCancel={() => setPickupModalOrder(null)}
+            loading={actionLoading[pickupModalOrder.id] === 'pickup'}
           />
         )}
 
@@ -325,6 +345,87 @@ function CompleteOrderModal({ order, onConfirm, onCancel, loading }) {
               opacity: loading ? 0.6 : 1,
             }}>
             {loading ? 'Completing…' : 'Confirm'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Pickup Code Verification Modal ───────────────────────────────────────── */
+
+function PickupCodeModal({ order, onConfirm, onCancel, loading }) {
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = () => {
+    if (code.length !== 6 || !/^\d+$/.test(code)) {
+      setError('Please enter a valid 6-digit code.');
+      return;
+    }
+    setError('');
+    onConfirm(code);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} onClick={onCancel} />
+      <div style={{ position: 'relative', width: '100%', maxWidth: 380, background: '#FFFFFF', borderRadius: 12, border: '1px solid #E5E7EB', padding: 28, margin: '0 16px' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg style={{ width: 18, height: 18, color: '#16A34A' }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <div>
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#111111', margin: 0 }}>Verify Pickup</p>
+            <p style={{ fontSize: 12, color: '#6B7280', margin: 0 }}>Order #{order.orderNumber || order.id?.slice(0, 8)}</p>
+          </div>
+        </div>
+
+        <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 20, marginTop: 12 }}>
+          Ask the customer to show their <strong>6-digit pickup code</strong> and enter it below to confirm handoff.
+        </p>
+
+        <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 8 }}>
+          Pickup Code
+        </label>
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          value={code}
+          onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); setError(''); }}
+          placeholder="000000"
+          style={{
+            width: '100%', padding: '12px 16px', borderRadius: 8,
+            border: `1px solid ${error ? '#EF4444' : '#E5E7EB'}`,
+            fontSize: 24, fontWeight: 700, color: '#111111',
+            letterSpacing: '0.5em', textAlign: 'center',
+            outline: 'none', boxSizing: 'border-box',
+            fontFamily: 'monospace',
+          }}
+          onFocus={(e) => e.target.style.borderColor = error ? '#EF4444' : '#0D9488'}
+          onBlur={(e) => e.target.style.borderColor = error ? '#EF4444' : '#E5E7EB'}
+          onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+        />
+        {error && <p style={{ fontSize: 12, color: '#EF4444', marginTop: 6 }}>{error}</p>}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
+          <button onClick={onCancel}
+            style={{ padding: '8px 16px', borderRadius: 6, fontSize: 13, fontWeight: 500, color: '#6B7280', background: 'none', border: 'none', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={handleSubmit} disabled={loading || code.length !== 6}
+            style={{
+              padding: '8px 20px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+              color: '#FFFFFF', background: '#16A34A', border: 'none',
+              cursor: (loading || code.length !== 6) ? 'not-allowed' : 'pointer',
+              opacity: (loading || code.length !== 6) ? 0.6 : 1,
+            }}>
+            {loading ? 'Verifying…' : 'Confirm Pickup'}
           </button>
         </div>
       </div>

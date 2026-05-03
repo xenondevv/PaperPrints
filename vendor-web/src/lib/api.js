@@ -89,6 +89,12 @@ export async function updateOrderStatus(orderId, status) {
   return res.data;
 }
 
+export async function verifyPickupCode(orderId, code) {
+  const res = await api.post(`/vendor/orders/${orderId}/verify-pickup`, { code });
+  return res.data;
+}
+
+
 // ── Auth API ───────────────────────────────────────────────────────────────────
 
 export async function loginWithFirebaseToken(idToken) {

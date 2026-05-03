@@ -62,7 +62,7 @@ async function createOrder(userId, { vendor_id, file_id, file_ids, copies, is_do
   const orderRes = await query(
     `INSERT INTO orders
        (order_number, user_id, vendor_id, file_id, status, copies, is_double_sided, total_price)
-       VALUES ($1, $2, $3, $4, 'PENDING', $5, $6, $7)
+       VALUES ($1, $2, $3, $4, 'PAYMENT_PENDING', $5, $6, $7)
        RETURNING *`,
     [orderNumber, userId, vendor_id, primaryFileId, copies || 1, is_double_sided || false, totalPrice]
   );
@@ -97,18 +97,6 @@ async function createOrder(userId, { vendor_id, file_id, file_ids, copies, is_do
       `INSERT INTO order_pages (order_id, page_number, print_type) VALUES ${pageValues}`,
       pageParams
     );
-  }
-
-  // Notify the vendor in real time
-  try {
-    const vendorUserRes = await query(
-      `SELECT user_id FROM vendors WHERE id = $1`, [vendor_id]
-    );
-    if (vendorUserRes.rows[0]) {
-      emitNewOrderToVendor(vendorUserRes.rows[0].user_id, formatOrder(order, pages || [], allFileIds));
-    }
-  } catch (e) {
-    console.error('[socket] Failed to notify vendor:', e.message);
   }
 
   return formatOrder(order, pages || [], allFileIds);

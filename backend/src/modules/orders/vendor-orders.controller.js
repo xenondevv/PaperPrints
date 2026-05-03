@@ -6,6 +6,7 @@ const {
   acceptOrder,
   rejectOrder,
   updateOrderStatus,
+  verifyPickup,
   getOrderFileUrl,
 } = require('./vendor-orders.service');
 
@@ -69,6 +70,20 @@ async function handleGetFileUrl(req, res, next) {
   }
 }
 
+// POST /api/vendor/orders/:id/verify-pickup — validate 6-digit code and complete order
+async function handleVerifyPickup(req, res, next) {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ message: 'code is required' });
+    }
+    const result = await verifyPickup(req.user.id, req.params.id, code);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   handleGetAll,
   handleGetById,
@@ -76,4 +91,5 @@ module.exports = {
   handleReject,
   handleStatusUpdate,
   handleGetFileUrl,
+  handleVerifyPickup,
 };

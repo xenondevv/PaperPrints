@@ -7,7 +7,7 @@ const { handleCreate, handleGetAll, handleGetById, handleCancel } = require('./o
 
 const router = Router();
 router.use(requireAuth);
-router.use(requireRole('user'));
+router.use(requireRole('user', 'vendor'));
 
 // POST   /api/orders
 router.post('/', handleCreate);
