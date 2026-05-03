@@ -211,15 +211,15 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
       if (o.id != id) return o;
       return o.copyWith(
           status: status,
-          estimatedTime: estimatedTime,
-          qrCodeUrl: qrCodeUrl);
+          estimatedTime: estimatedTime ?? o.estimatedTime,
+          qrCodeUrl: qrCodeUrl ?? o.qrCodeUrl);
     }).toList();
 
     final activeOrder = state.activeOrder?.id == id
         ? state.activeOrder!.copyWith(
             status: status,
-            estimatedTime: estimatedTime,
-            qrCodeUrl: qrCodeUrl)
+            estimatedTime: estimatedTime ?? state.activeOrder!.estimatedTime,
+            qrCodeUrl: qrCodeUrl ?? state.activeOrder!.qrCodeUrl)
         : state.activeOrder;
 
     state = state.copyWith(orders: updatedOrders, activeOrder: activeOrder);

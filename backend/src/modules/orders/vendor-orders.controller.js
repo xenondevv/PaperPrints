@@ -6,6 +6,7 @@ const {
   acceptOrder,
   rejectOrder,
   updateOrderStatus,
+  getOrderFileUrl,
 } = require('./vendor-orders.service');
 
 async function handleGetAll(req, res, next) {
@@ -58,10 +59,21 @@ async function handleStatusUpdate(req, res, next) {
   }
 }
 
+// GET /api/vendor/orders/:id/file — return a fresh pre-signed S3 download URL
+async function handleGetFileUrl(req, res, next) {
+  try {
+    const result = await getOrderFileUrl(req.user.id, req.params.id);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   handleGetAll,
   handleGetById,
   handleAccept,
   handleReject,
   handleStatusUpdate,
+  handleGetFileUrl,
 };

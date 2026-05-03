@@ -17,7 +17,7 @@ module.exports = {
   },
   s3: {
     region: process.env.AWS_REGION,
-    bucket: process.env.S3_BUCKET,
+    bucket: process.env.S3_BUCKET_NAME || process.env.S3_BUCKET, // supports both naming conventions
   },
   pdfService: {
     url: process.env.PDF_SERVICE_URL,

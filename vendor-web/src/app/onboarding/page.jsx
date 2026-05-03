@@ -219,8 +219,19 @@ export default function OnboardingPage() {
       // Registration complete, go to dashboard
       router.push('/dashboard');
     } catch (err) {
-      setSubmitError(err.response?.data?.message || 'Registration failed. Please try again.');
-      setSubmitting(false);
+      const errMessage = err.response?.data?.message || '';
+      if (errMessage === 'User is already registered as a vendor') {
+        // User already has a vendor profile, just their local role is outdated.
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          router.push('/dashboard');
+        } else {
+          window.location.href = '/dashboard';
+        }
+      } else {
+        setSubmitError(errMessage || 'Registration failed. Please try again.');
+        setSubmitting(false);
+      }
     }
   };
 

@@ -58,8 +58,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
   // Demo vendor (hardcoded — no network call)
   static final _demoVendor = VendorModel(
-    id: 'cc7b3e49-f76e-4d61-9491-4f797ea6dee0', // ABES Print Shop (seeded)
-    shopName: 'ABES Print Shop',
+    id: '04d46a90-dc3b-4387-b351-6c6ed0ec1f66', // ertyu
+    shopName: 'ertyu',
     address: 'Demo Shop, Local Area',
     phone: '9999999999',
     isOpen: true,
@@ -514,7 +514,57 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           debugPrint('Payment successful: $result');
 
           // Navigate directly to the Order Details screen where it will show Waiting for Confirmation
-          context.go('/orders/${order.id}');
+          // context.go('/orders/${order.id}');
+          
+          // Show popup for successful payment
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: AppColors.bg,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              contentPadding: const EdgeInsets.all(24),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.check_circle, color: AppColors.success, size: 50),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text('Payment Successful!',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: AppColors.textPrimary)),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Your order has been placed.\nWaiting for the print shop to confirm.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        context.go('/orders/${order.id}');
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text('View Order Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
         },
         onError: (error) {
           if (!mounted) return;
