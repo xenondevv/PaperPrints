@@ -201,23 +201,23 @@ export default function OnboardingPage() {
         lng: lng || 0,
       });
 
-      // 2. Update pricing with vendor's chosen values
+      // 2. Refresh token immediately to get the updated 'vendor' role
+      // This is required before calling the protected PATCH endpoints below.
+      const newToken = await refreshAccessToken();
+      if (!newToken) throw new Error('Authentication failed after registration.');
+
+      // 3. Update pricing with vendor's chosen values
       await updateVendorPricing({
         priceBw: parseFloat(priceBw) || 0,
         priceColor: parseFloat(priceColor) || 0,
         priceDoubleSided: parseFloat(priceDoubleSided) || 0,
       });
 
-      // 3. Update business hours
+      // 4. Update business hours
       await updateBusinessHours(openingTime, closingTime);
 
-      // 4. Refresh token to get updated role: 'vendor'
-      const newToken = await refreshAccessToken();
-      if (newToken) {
-        router.push('/dashboard');
-      } else {
-        window.location.href = '/dashboard';
-      }
+      // Registration complete, go to dashboard
+      router.push('/dashboard');
     } catch (err) {
       setSubmitError(err.response?.data?.message || 'Registration failed. Please try again.');
       setSubmitting(false);
