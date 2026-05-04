@@ -296,30 +296,72 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
 
 
-  /// Renders a specific page from a PDF file as a pw.MemoryImage for embedding
-  /// in a merged PDF document.
-  Future<pw.MemoryImage?> _renderPageAsImage(PlatformFile pFile, int pageNum) async {
-    final ext = pFile.extension?.toLowerCase() ?? 'pdf';
-    if (_imageExts.contains(ext)) {
-      // For images, just read the bytes directly
-      final bytes = kIsWeb ? pFile.bytes! : await File(pFile.path!).readAsBytes();
-      return pw.MemoryImage(bytes);
+  // Cache for rendered images to avoid double rendering
+  final Map<int, pw.MemoryImage> _renderedPageCache = {};
+
+  /// Pre-renders all needed pages across all files. Opens each document only ONCE.
+  Future<void> _preRenderPages(List<int> globalPages) async {
+    // Group global pages by file index
+    final pagesByFile = <int, List<int>>{};
+    for (final globalPage in globalPages) {
+      if (_renderedPageCache.containsKey(globalPage)) continue;
+      
+      int offset = 0;
+      for (int f = 0; f < _files.length; f++) {
+        final fc = _filePageCounts.length > f ? _filePageCounts[f] : 0;
+        if (globalPage <= offset + fc) {
+          pagesByFile.putIfAbsent(f, () => []).add(globalPage);
+          break;
+        }
+        offset += fc;
+      }
     }
-    // For PDFs, render the specific page
-    final doc = kIsWeb ? await PdfDocument.openData(pFile.bytes!) : await PdfDocument.openFile(pFile.path!);
-    try {
-      if (pageNum > doc.pagesCount) return null;
-      final page = await doc.getPage(pageNum);
-      final rendered = await page.render(
-        width: page.width * 2,
-        height: page.height * 2,
-        format: PdfPageImageFormat.png,
-      );
-      await page.close();
-      if (rendered == null) return null;
-      return pw.MemoryImage(rendered.bytes);
-    } finally {
-      await doc.close();
+
+    // Process each file
+    for (final entry in pagesByFile.entries) {
+      final fileIdx = entry.key;
+      final neededGlobalPages = entry.value;
+      final pFile = _files[fileIdx];
+      final ext = pFile.extension?.toLowerCase() ?? 'pdf';
+      
+      // Calculate offset for this file
+      int offset = 0;
+      for (int i = 0; i < fileIdx; i++) {
+        offset += _filePageCounts.length > i ? _filePageCounts[i] : 0;
+      }
+
+      if (_imageExts.contains(ext)) {
+        final bytes = kIsWeb ? pFile.bytes! : await File(pFile.path!).readAsBytes();
+        final img = pw.MemoryImage(bytes);
+        for (final gp in neededGlobalPages) {
+          _renderedPageCache[gp] = img;
+        }
+        continue;
+      }
+
+      // For PDFs, open ONCE
+      final doc = kIsWeb ? await PdfDocument.openData(pFile.bytes!) : await PdfDocument.openFile(pFile.path!);
+      try {
+        for (final gp in neededGlobalPages) {
+          final localPage = gp - offset;
+          if (localPage > doc.pagesCount || localPage < 1) continue;
+          
+          final page = await doc.getPage(localPage);
+          final rendered = await page.render(
+            width: page.width * 2,
+            height: page.height * 2,
+            format: PdfPageImageFormat.jpeg, // JPEG is much faster to encode and smaller than PNG
+            quality: 85, // Good balance of quality and file size
+          );
+          await page.close();
+          
+          if (rendered != null) {
+            _renderedPageCache[gp] = pw.MemoryImage(rendered.bytes);
+          }
+        }
+      } finally {
+        await doc.close();
+      }
     }
   }
 
@@ -331,22 +373,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     final isLandscape = _orientation == _Orientation.landscape;
 
     for (final globalPage in pageIndices) {
-      // Map global page number to (file index, local page number)
-      int offset = 0;
-      PlatformFile? pFile;
-      int localPage = 1;
-      for (int f = 0; f < _files.length; f++) {
-        final fc = _filePageCounts.length > f ? _filePageCounts[f] : 0;
-        if (globalPage <= offset + fc) {
-          pFile = _files[f];
-          localPage = globalPage - offset;
-          break;
-        }
-        offset += fc;
-      }
-      if (pFile == null) continue;
-
-      final image = await _renderPageAsImage(pFile, localPage);
+      final image = _renderedPageCache[globalPage];
       if (image == null) continue;
 
       if (isLandscape) {
@@ -507,9 +534,30 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
       debugPrint('Placing order with merged file IDs: $fileIds');
 
+      // Step 0.5: Pre-render all pages ONCE and cache them for all subsequent PDF generations
+      setState(() => _paymentOverlayMessage = 'Rendering pages (this might take a moment)');
+      final total = _pageCountRaw;
+      final activePages = _selectedPages.isEmpty
+          ? List.generate(total, (i) => i + 1)
+          : (_selectedPages.toList()..sort());
+      
+      debugPrint('Pre-rendering ${activePages.length} pages to cache...');
+      await _preRenderPages(activePages);
+
+      // Step 0.75: Build the "original" merged PDF containing ALL selected pages (both B&W + Color combined)
+      setState(() => _paymentOverlayMessage = 'Preparing original file');
+      debugPrint('Building original merged PDF with ${activePages.length} selected pages');
+      final originalMergedBytes = await _buildMergedPdf(activePages, 'original');
+      final originalRecord = await FilesRepository().upload(
+        'merged_original_${DateTime.now().millisecondsSinceEpoch}.pdf',
+        bytes: originalMergedBytes,
+        onProgress: (sent, total) =>
+            setState(() => _uploadProgress = sent / total),
+      );
+      final originalFileId = originalRecord['id'].toString();
+
       // Step 1: Create the order on the backend
       setState(() => _paymentOverlayMessage = 'Creating your order');
-      final originalFileId = uploadedRecords.first['id'].toString();
       final order = await ref.read(ordersProvider.notifier).create({
         'vendor_id': _selectedVendor!.id,
         'file_id': fileIds.first,

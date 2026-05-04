@@ -395,10 +395,10 @@ function PickupCodeModal({ order, onConfirm, onCancel, loading }) {
         <input
           type="text"
           inputMode="numeric"
-          maxLength={6}
+          maxLength={4}
           value={code}
           onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); setError(''); }}
-          placeholder="000000"
+          placeholder="0000"
           style={{
             width: '100%', padding: '12px 16px', borderRadius: 8,
             border: `1px solid ${error ? '#EF4444' : '#E5E7EB'}`,
@@ -418,12 +418,12 @@ function PickupCodeModal({ order, onConfirm, onCancel, loading }) {
             style={{ padding: '8px 16px', borderRadius: 6, fontSize: 13, fontWeight: 500, color: '#6B7280', background: 'none', border: 'none', cursor: 'pointer' }}>
             Cancel
           </button>
-          <button onClick={handleSubmit} disabled={loading || code.length !== 6}
+          <button onClick={handleSubmit} disabled={loading || code.length !== 4}
             style={{
               padding: '8px 20px', borderRadius: 6, fontSize: 13, fontWeight: 600,
               color: '#FFFFFF', background: '#16A34A', border: 'none',
-              cursor: (loading || code.length !== 6) ? 'not-allowed' : 'pointer',
-              opacity: (loading || code.length !== 6) ? 0.6 : 1,
+              cursor: (loading || code.length !== 4) ? 'not-allowed' : 'pointer',
+              opacity: (loading || code.length !== 4) ? 0.6 : 1,
             }}>
             {loading ? 'Verifying…' : 'Confirm Pickup'}
           </button>
@@ -501,38 +501,76 @@ function OrderDetailModal({ order, onClose }) {
             <p style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{order.customerEmail || order.customerPhone || '—'}</p>
           </Section>
 
-          {/* Remark */}
-          <Section title="Remark">
-            <p style={{ fontSize: 13, color: order.remark ? '#111111' : '#0D9488', fontStyle: order.remark ? 'normal' : 'italic' }}>
-              {order.remark || 'No remark.'}
-            </p>
+          {/* Print Options */}
+          <Section title="Print Options">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {order.isDoubleSided && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '4px 12px', borderRadius: 20,
+                  fontSize: 12, fontWeight: 600,
+                  background: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA',
+                }}>
+                  <svg style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Double-sided Printing
+                </span>
+              )}
+              {!order.isDoubleSided && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '4px 12px', borderRadius: 20,
+                  fontSize: 12, fontWeight: 500,
+                  background: '#F3F4F6', color: '#6B7280', border: '1px solid #E5E7EB',
+                }}>
+                  Single-sided Printing
+                </span>
+              )}
+            </div>
           </Section>
 
           {/* Files to Print */}
           <Section title="Files to Print">
-            <div style={{ border: '1px solid #E5E7EB', borderRadius: 8, padding: 16, background: '#FAFAFA' }}>
-              <p style={{ fontSize: 14, fontWeight: 500, color: '#111111' }}>
-                {order.fileName || 'Standard Documents'}
-                <span style={{ color: '#B91C1C', fontWeight: 500, marginLeft: 8 }}>x {order.copies || 1} Copies</span>
-              </p>
-              <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
-                Total Pages: {order.totalPages || '—'}
-              </p>
-              <div style={{ display: 'flex', gap: 12, marginTop: 16, alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', gap: 10, flex: 1 }}>
-                  <FileCard label="B&W FILE" fileId={order.bwFileId || (order.fileIds && order.fileIds.length === 1 ? order.fileIds[0] : null)} url={order.bwFile || order.fileUrl} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
-                  <FileCard label="COLOR FILE" fileId={order.colorFileId || (order.fileIds && order.fileIds.length === 1 ? order.fileIds[0] : null)} url={order.colorFile || order.fileUrl} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
+            {(() => {
+              const pages = order.pages || [];
+              const selectedPageCount = pages.length;
+              const bwPageCount = pages.filter(p => !p.isColor).length;
+              const colorPageCount = pages.filter(p => p.isColor).length;
+              const allBw = selectedPageCount > 0 && colorPageCount === 0;
+              const allColor = selectedPageCount > 0 && bwPageCount === 0;
+              const displayTotalPages = selectedPageCount > 0 ? selectedPageCount : (order.totalPages || '—');
+              return (
+                <div style={{ border: '1px solid #E5E7EB', borderRadius: 8, padding: 16, background: '#FAFAFA' }}>
+                  <p style={{ fontSize: 14, fontWeight: 500, color: '#111111' }}>
+                    {order.fileName || 'Standard Documents'}
+                    <span style={{ color: '#B91C1C', fontWeight: 500, marginLeft: 8 }}>x {order.copies || 1} Copies</span>
+                  </p>
+                  <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
+                    Total Pages: {displayTotalPages}
+                    {selectedPageCount > 0 && bwPageCount > 0 && colorPageCount > 0 && (
+                      <span style={{ marginLeft: 8 }}>({bwPageCount} B&W + {colorPageCount} Color)</span>
+                    )}
+                    {allBw && <span style={{ marginLeft: 8 }}>(All B&W)</span>}
+                    {allColor && <span style={{ marginLeft: 8 }}>(All Color)</span>}
+                  </p>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 16, alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', gap: 10, flex: 1 }}>
+                      <FileCard label={`B&W FILE${bwPageCount > 0 ? ` (${bwPageCount}p)` : ''}`} fileId={!allColor ? (order.bwFileId || (order.fileIds && order.fileIds.length === 1 ? order.fileIds[0] : null)) : null} url={!allColor ? (order.bwFile || order.fileUrl) : null} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} disabled={allColor} />
+                      <FileCard label={`COLOR FILE${colorPageCount > 0 ? ` (${colorPageCount}p)` : ''}`} fileId={!allBw ? (order.colorFileId || (order.fileIds && order.fileIds.length === 1 ? order.fileIds[0] : null)) : null} url={!allBw ? (order.colorFile || order.fileUrl) : null} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} disabled={allBw} />
+                    </div>
+                    <FileCard label="ORIGINAL FILE" fileId={order.originalMergedFileId || order.originalFileId || order.fileId} url={order.originalMergedFileUrl || order.originalFileUrl || order.fileUrl} fileName={order.fileName} variant="outline" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
+                  </div>
                 </div>
-                <FileCard label="ORIGINAL FILE" fileId={order.originalFileId || order.fileId} url={order.originalFileUrl || order.fileUrl} fileName={order.fileName} variant="outline" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
-              </div>
-            </div>
+              );
+            })()}
           </Section>
 
           {/* Order Summary */}
           <Section title="Order Summary">
             <div style={{ fontSize: 13, color: '#111111', lineHeight: 1.8 }}>
               <p>1. Paper Printing - {order.fileName || 'Standard Documents'} (No. of Copies: {order.copies || 1})</p>
-              {order.isDoubleSided && <p style={{ fontSize: 12, color: '#6B7280' }}>• Double-sided printing</p>}
+              {order.isDoubleSided && <p style={{ fontSize: 12, color: '#B91C1C', fontWeight: 600 }}>• Double-sided printing</p>}
               {order.estimatedTime && <p style={{ fontSize: 12, color: '#6B7280' }}>• Estimated time: {order.estimatedTime} min</p>}
             </div>
           </Section>
@@ -577,20 +615,20 @@ function Section({ title, children, noBorder }) {
 
 /* ── File Card ─────────────────────────────────────────────────────────────── */
 
-function FileCard({ label, fileId, url, fileName, variant, onPrint, onDownload, onOpen }) {
+function FileCard({ label, fileId, url, fileName, variant, onPrint, onDownload, onOpen, disabled }) {
   const isSolid = variant === 'solid';
-  const hasFile = !!(fileId || url);
+  const hasFile = !!(fileId || url) && !disabled;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-      <button onClick={() => hasFile && onOpen(fileId, url)} disabled={!hasFile}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, opacity: disabled ? 0.35 : 1 }}>
+      <button onClick={() => hasFile && onOpen(fileId, url)} disabled={!hasFile || disabled}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '8px 16px', borderRadius: 6,
           fontSize: 11, fontWeight: 600, letterSpacing: '0.3px',
-          background: isSolid ? '#0D9488' : '#FFFFFF',
-          color: isSolid ? '#FFFFFF' : '#0F766E',
-          border: isSolid ? '1px solid #0D9488' : '1.5px solid #0D9488',
-          cursor: hasFile ? 'pointer' : 'default', opacity: hasFile ? 1 : 0.4, whiteSpace: 'nowrap',
+          background: disabled ? '#E5E7EB' : (isSolid ? '#0D9488' : '#FFFFFF'),
+          color: disabled ? '#9CA3AF' : (isSolid ? '#FFFFFF' : '#0F766E'),
+          border: disabled ? '1px solid #D1D5DB' : (isSolid ? '1px solid #0D9488' : '1.5px solid #0D9488'),
+          cursor: hasFile ? 'pointer' : 'not-allowed', opacity: hasFile ? 1 : 0.6, whiteSpace: 'nowrap',
         }}>
         <svg style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -598,25 +636,25 @@ function FileCard({ label, fileId, url, fileName, variant, onPrint, onDownload, 
         {label}
       </button>
       <div style={{ display: 'flex', gap: 4 }}>
-        <button onClick={() => onPrint(fileId, url)} disabled={!hasFile}
+        <button onClick={() => onPrint(fileId, url)} disabled={!hasFile || disabled}
           style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '4px 10px', borderRadius: 4,
-            fontSize: 10, fontWeight: 500, color: '#6B7280',
-            background: '#F3F4F6', border: '1px solid #E5E7EB',
-            cursor: hasFile ? 'pointer' : 'default', opacity: hasFile ? 1 : 0.4,
+            fontSize: 10, fontWeight: 500, color: disabled ? '#D1D5DB' : '#6B7280',
+            background: disabled ? '#F9FAFB' : '#F3F4F6', border: '1px solid #E5E7EB',
+            cursor: hasFile ? 'pointer' : 'not-allowed', opacity: hasFile ? 1 : 0.4,
           }}>
           <svg style={{ width: 11, height: 11 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
           PRINT
         </button>
-        <button onClick={() => onDownload(fileId, url, fileName)} disabled={!hasFile}
+        <button onClick={() => onDownload(fileId, url, fileName)} disabled={!hasFile || disabled}
           style={{
             display: 'flex', alignItems: 'center',
             padding: '4px 8px', borderRadius: 4,
-            background: '#F3F4F6', border: '1px solid #E5E7EB',
-            color: '#6B7280', cursor: hasFile ? 'pointer' : 'default', opacity: hasFile ? 1 : 0.4,
+            background: disabled ? '#F9FAFB' : '#F3F4F6', border: '1px solid #E5E7EB',
+            color: disabled ? '#D1D5DB' : '#6B7280', cursor: hasFile ? 'pointer' : 'not-allowed', opacity: hasFile ? 1 : 0.4,
           }}>
           <svg style={{ width: 11, height: 11 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

@@ -270,7 +270,7 @@ async function verifyPickup(userId, orderId, code) {
     throw err;
   }
 
-  // Validate the 6-digit code
+  // Validate the 4-digit code
   if (!code || String(code).trim() !== String(qr_code_url).trim()) {
     const err = new Error('Invalid pickup code');
     err.status = 400;
@@ -338,6 +338,9 @@ async function formatVendorOrder(row) {
     colorFile: orderFiles.find((of) => of.label === 'color')?.file_url || null,
     originalFileId: row.file_id || null,
     originalFileUrl: signedFileUrl || row.file_url || null,
+    // Original merged file (all selected pages combined - mix of B&W + Color)
+    originalMergedFileId: orderFiles.find((of) => of.label === 'original')?.file_id || null,
+    originalMergedFileUrl: orderFiles.find((of) => of.label === 'original')?.file_url || null,
     files: orderFiles.map((of) => ({
       fileId: of.file_id,
       label: of.label || null,

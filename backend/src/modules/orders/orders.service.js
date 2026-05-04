@@ -95,6 +95,15 @@ async function createOrder(userId, { vendor_id, file_id, original_file_id, file_
     }
   }
 
+  // 6b. Insert the original merged file (all selected pages combined) into order_files
+  if (original_file_id && !allFileIds.includes(original_file_id)) {
+    await query(
+      `INSERT INTO order_files (order_id, file_id, label, sort_order) VALUES ($1, $2, 'original', $3)
+       ON CONFLICT (order_id, file_id) DO NOTHING`,
+      [order.id, original_file_id, allFileIds.length]
+    );
+  }
+
   // 7. Insert per-page specs
   if (pages && pages.length) {
     const pageValues = pages
