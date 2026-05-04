@@ -1,5 +1,5 @@
 'use client';
-import { triggerApkDownload, scrollToSection } from './config';
+import { CONFIG, scrollToSection } from './config';
 
 export default function Hero() {
   return (
@@ -95,8 +95,9 @@ export default function Hero() {
               .hero-cta-group button { width: 100% !important; justify-content: center !important; }
             }
           `}</style>
-          <button
-            onClick={triggerApkDownload}
+          <a
+            href={`/${CONFIG.APK_FILENAME}`}
+            download="PaperPrints.apk"
             className="flex items-center gap-3 cursor-pointer transition-all duration-200"
             style={{
               background: '#1A1814',
@@ -107,13 +108,15 @@ export default function Hero() {
               borderRadius: 4,
               border: 'none',
               filter: 'url(#roughpaper)',
+              textDecoration: 'none',
+              display: 'inline-flex',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.background = '#2D2A25'; e.currentTarget.style.transform = 'scale(1.01) translate(-1px, -1px)'; e.currentTarget.style.boxShadow = '3px 3px 0 rgba(26,24,20,0.2)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = '#1A1814'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 2.227l-1.39 2.407a7.987 7.987 0 00-8.266 0L6.477 2.227a.393.393 0 00-.676.394l1.372 2.378A8.012 8.012 0 004 11.5h16a8.012 8.012 0 00-3.173-6.501l1.372-2.378a.393.393 0 00-.676-.394zM8.5 9a1 1 0 110-2 1 1 0 010 2zm7 0a1 1 0 110-2 1 1 0 010 2zM4 12.5h16v.5A8 8 0 014 13v-.5z"/></svg>
             Download Free App
-          </button>
+          </a>
           <button
             onClick={() => scrollToSection('for-shops')}
             className="cursor-pointer transition-all duration-200"

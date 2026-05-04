@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { CONFIG, triggerApkDownload, scrollToSection } from './config';
+import { CONFIG, scrollToSection } from './config';
 
 const navLinks = [
   { label: 'How it Works', target: 'how-it-works' },
@@ -165,8 +165,9 @@ export default function Navbar() {
             >
               Vendor Login
             </button>
-            <button
-              onClick={triggerApkDownload}
+            <a
+              href={`/${CONFIG.APK_FILENAME}`}
+              download="PaperPrints.apk"
               style={{
                 background: '#1A1814',
                 color: '#F0EDE6',
@@ -179,12 +180,14 @@ export default function Navbar() {
                 cursor: 'pointer',
                 filter: 'url(#roughpaper)',
                 transition: 'all 0.2s ease',
+                textDecoration: 'none',
+                display: 'inline-flex',
               }}
               onMouseEnter={(e) => { e.currentTarget.style.background = '#22C55E'; e.currentTarget.style.color = '#0F0F0F'; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = '#1A1814'; e.currentTarget.style.color = '#F0EDE6'; }}
             >
               Download App
-            </button>
+            </a>
           </div>
 
           {/* Hamburger – mobile */}
@@ -261,17 +264,20 @@ export default function Navbar() {
           >
             Vendor Login
           </button>
-          <button
-            onClick={() => { setMenuOpen(false); triggerApkDownload(); }}
+          <a
+            href={`/${CONFIG.APK_FILENAME}`}
+            download="PaperPrints.apk"
+            onClick={() => { setMenuOpen(false); }}
             style={{
               width: '100%', cursor: 'pointer', border: 'none',
               background: '#1A1814', color: '#F0EDE6',
               fontFamily: 'system-ui, sans-serif', fontWeight: 600, fontSize: 16,
               padding: '14px 0', borderRadius: 6, filter: 'url(#roughpaper)',
+              textDecoration: 'none', textAlign: 'center', display: 'block',
             }}
           >
             Get the App
-          </button>
+          </a>
         </div>
       </div>
     </>
