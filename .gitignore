@@ -57,6 +57,6 @@ uploads/
 .dart_tool/
 .gradle/
 build/
-*.lock
 *.bin
 *.stamp
+pubspec.lock
