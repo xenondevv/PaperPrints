@@ -436,6 +436,10 @@ function PickupCodeModal({ order, onConfirm, onCancel, loading }) {
 /* ── Order Detail Modal (inline dialog) ────────────────────────────────────── */
 
 function OrderDetailModal({ order, onClose }) {
+  const [printingFileKey, setPrintingFileKey] = useState(null);
+  const [downloadingFileKey, setDownloadingFileKey] = useState(null);
+  const [openingFileKey, setOpeningFileKey] = useState(null);
+
   // Resolve a pre-signed URL for a file — handles the S3 private bucket
   const resolveUrl = async (fileId, fallbackUrl) => {
     if (fileId) {
@@ -447,9 +451,11 @@ function OrderDetailModal({ order, onClose }) {
   };
 
   const handlePrint = async (fileId, fallbackUrl) => {
-    const url = await resolveUrl(fileId, fallbackUrl);
-    if (!url) return;
+    const key = fileId || fallbackUrl;
+    setPrintingFileKey(key);
     try {
+      const url = await resolveUrl(fileId, fallbackUrl);
+      if (!url) { setPrintingFileKey(null); return; }
       const resp = await fetch(url);
       const blob = await resp.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -458,23 +464,34 @@ function OrderDetailModal({ order, onClose }) {
       document.body.appendChild(iframe);
       iframe.src = blobUrl;
       iframe.onload = () => {
+        setPrintingFileKey(null);
         try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch { window.open(url, '_blank'); }
         setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(blobUrl); }, 2000);
       };
-    } catch { window.open(url, '_blank'); }
+    } catch { setPrintingFileKey(null); }
   };
 
   const handleDownload = async (fileId, fallbackUrl, fileName) => {
-    const url = await resolveUrl(fileId, fallbackUrl);
-    if (!url) return;
-    const a = document.createElement('a');
-    a.href = url; a.download = fileName || 'document.pdf'; a.target = '_blank';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    const key = fileId || fallbackUrl;
+    setDownloadingFileKey(key);
+    try {
+      const url = await resolveUrl(fileId, fallbackUrl);
+      if (!url) { setDownloadingFileKey(null); return; }
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName || 'document.pdf'; a.target = '_blank';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch { }
+    setDownloadingFileKey(null);
   };
 
   const handleOpen = async (fileId, fallbackUrl) => {
-    const url = await resolveUrl(fileId, fallbackUrl);
-    if (url) window.open(url, '_blank');
+    const key = fileId || fallbackUrl;
+    setOpeningFileKey(key);
+    try {
+      const url = await resolveUrl(fileId, fallbackUrl);
+      if (url) window.open(url, '_blank');
+    } catch { }
+    setOpeningFileKey(null);
   };
 
   return (
@@ -556,10 +573,10 @@ function OrderDetailModal({ order, onClose }) {
                   </p>
                   <div style={{ display: 'flex', gap: 12, marginTop: 16, alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', gap: 10, flex: 1 }}>
-                      <FileCard label={`B&W FILE${bwPageCount > 0 ? ` (${bwPageCount}p)` : ''}`} fileId={!allColor ? (order.bwFileId || (order.fileIds && order.fileIds.length === 1 ? order.fileIds[0] : null)) : null} url={!allColor ? (order.bwFile || order.fileUrl) : null} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} disabled={allColor} />
-                      <FileCard label={`COLOR FILE${colorPageCount > 0 ? ` (${colorPageCount}p)` : ''}`} fileId={!allBw ? (order.colorFileId || (order.fileIds && order.fileIds.length === 1 ? order.fileIds[0] : null)) : null} url={!allBw ? (order.colorFile || order.fileUrl) : null} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} disabled={allBw} />
+                      <FileCard label={`B&W FILE${bwPageCount > 0 ? ` (${bwPageCount}p)` : ''}`} fileId={!allColor ? (order.bwFileId || (order.fileIds && order.fileIds.length === 1 ? order.fileIds[0] : null)) : null} url={!allColor ? (order.bwFile || order.fileUrl) : null} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} disabled={allColor} printingFileKey={printingFileKey} downloadingFileKey={downloadingFileKey} openingFileKey={openingFileKey} />
+                      <FileCard label={`COLOR FILE${colorPageCount > 0 ? ` (${colorPageCount}p)` : ''}`} fileId={!allBw ? (order.colorFileId || (order.fileIds && order.fileIds.length === 1 ? order.fileIds[0] : null)) : null} url={!allBw ? (order.colorFile || order.fileUrl) : null} fileName={order.fileName} variant="solid" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} disabled={allBw} printingFileKey={printingFileKey} downloadingFileKey={downloadingFileKey} openingFileKey={openingFileKey} />
                     </div>
-                    <FileCard label="ORIGINAL FILE" fileId={order.originalMergedFileId || order.originalFileId || order.fileId} url={order.originalMergedFileUrl || order.originalFileUrl || order.fileUrl} fileName={order.fileName} variant="outline" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} />
+                    <FileCard label="ORIGINAL FILE" fileId={order.originalMergedFileId || order.originalFileId || order.fileId} url={order.originalMergedFileUrl || order.originalFileUrl || order.fileUrl} fileName={order.fileName} variant="outline" onPrint={handlePrint} onDownload={handleDownload} onOpen={handleOpen} printingFileKey={printingFileKey} downloadingFileKey={downloadingFileKey} openingFileKey={openingFileKey} />
                   </div>
                 </div>
               );
@@ -615,12 +632,20 @@ function Section({ title, children, noBorder }) {
 
 /* ── File Card ─────────────────────────────────────────────────────────────── */
 
-function FileCard({ label, fileId, url, fileName, variant, onPrint, onDownload, onOpen, disabled }) {
+function FileCard({ label, fileId, url, fileName, variant, onPrint, onDownload, onOpen, disabled, printingFileKey, downloadingFileKey, openingFileKey }) {
   const isSolid = variant === 'solid';
   const hasFile = !!(fileId || url) && !disabled;
+  const myKey = fileId || url;
+  const isPrinting = printingFileKey && printingFileKey === myKey;
+  const isDownloading = downloadingFileKey && downloadingFileKey === myKey;
+  const isOpening = openingFileKey && openingFileKey === myKey;
+  const isBusy = isPrinting || isDownloading || isOpening;
+
+  const spinner = <span style={{ display: 'inline-block', width: 11, height: 11, border: '2px solid #99F6E4', borderTopColor: '#0D9488', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, opacity: disabled ? 0.35 : 1 }}>
-      <button onClick={() => hasFile && onOpen(fileId, url)} disabled={!hasFile || disabled}
+      <button onClick={() => hasFile && !isOpening && onOpen(fileId, url)} disabled={!hasFile || disabled || isOpening}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '8px 16px', borderRadius: 6,
@@ -628,37 +653,50 @@ function FileCard({ label, fileId, url, fileName, variant, onPrint, onDownload, 
           background: disabled ? '#E5E7EB' : (isSolid ? '#0D9488' : '#FFFFFF'),
           color: disabled ? '#9CA3AF' : (isSolid ? '#FFFFFF' : '#0F766E'),
           border: disabled ? '1px solid #D1D5DB' : (isSolid ? '1px solid #0D9488' : '1.5px solid #0D9488'),
-          cursor: hasFile ? 'pointer' : 'not-allowed', opacity: hasFile ? 1 : 0.6, whiteSpace: 'nowrap',
+          cursor: (hasFile && !isOpening) ? 'pointer' : 'not-allowed', opacity: hasFile ? 1 : 0.6, whiteSpace: 'nowrap',
         }}>
-        <svg style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-        </svg>
-        {label}
+        {isOpening ? spinner : (
+          <svg style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+        )}
+        {isOpening ? 'Opening…' : label}
       </button>
       <div style={{ display: 'flex', gap: 4 }}>
-        <button onClick={() => onPrint(fileId, url)} disabled={!hasFile || disabled}
+        <button onClick={() => !isPrinting && onPrint(fileId, url)} disabled={!hasFile || disabled || isPrinting}
           style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '4px 10px', borderRadius: 4,
-            fontSize: 10, fontWeight: 500, color: disabled ? '#D1D5DB' : '#6B7280',
-            background: disabled ? '#F9FAFB' : '#F3F4F6', border: '1px solid #E5E7EB',
-            cursor: hasFile ? 'pointer' : 'not-allowed', opacity: hasFile ? 1 : 0.4,
+            fontSize: 10, fontWeight: 500, color: isPrinting ? '#0D9488' : (disabled ? '#D1D5DB' : '#6B7280'),
+            background: isPrinting ? '#F0FDFA' : (disabled ? '#F9FAFB' : '#F3F4F6'), border: `1px solid ${isPrinting ? '#99F6E4' : '#E5E7EB'}`,
+            cursor: (hasFile && !isPrinting) ? 'pointer' : 'not-allowed', opacity: hasFile ? 1 : 0.4,
+            minWidth: 62,
           }}>
-          <svg style={{ width: 11, height: 11 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-          </svg>
-          PRINT
+          {isPrinting ? (
+            <>{spinner} Loading…</>
+          ) : (
+            <>
+              <svg style={{ width: 11, height: 11 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              PRINT
+            </>
+          )}
         </button>
-        <button onClick={() => onDownload(fileId, url, fileName)} disabled={!hasFile || disabled}
+        <button onClick={() => !isDownloading && onDownload(fileId, url, fileName)} disabled={!hasFile || disabled || isDownloading}
           style={{
             display: 'flex', alignItems: 'center',
             padding: '4px 8px', borderRadius: 4,
-            background: disabled ? '#F9FAFB' : '#F3F4F6', border: '1px solid #E5E7EB',
-            color: disabled ? '#D1D5DB' : '#6B7280', cursor: hasFile ? 'pointer' : 'not-allowed', opacity: hasFile ? 1 : 0.4,
+            background: isDownloading ? '#F0FDFA' : (disabled ? '#F9FAFB' : '#F3F4F6'),
+            border: `1px solid ${isDownloading ? '#99F6E4' : '#E5E7EB'}`,
+            color: isDownloading ? '#0D9488' : (disabled ? '#D1D5DB' : '#6B7280'),
+            cursor: (hasFile && !isDownloading) ? 'pointer' : 'not-allowed', opacity: hasFile ? 1 : 0.4,
           }}>
-          <svg style={{ width: 11, height: 11 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
+          {isDownloading ? spinner : (
+            <svg style={{ width: 11, height: 11 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          )}
         </button>
       </div>
     </div>

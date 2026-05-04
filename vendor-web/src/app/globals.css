@@ -3,16 +3,96 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  background-color: #FFFFFF;
-  color: #111111;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: #F0EDE6;
+  color: #1A1814;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+::-webkit-scrollbar-thumb { background: #8A8680; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #1A1814; }
 
-::selection { background: #CCFBF1; color: #111111; }
+::selection { background: rgba(34,197,94,0.15); color: #1A1814; }
+
+html { scroll-behavior: smooth; }
+
+/* Paper texture utility */
+.paper-texture {
+  background-color: #F0EDE6;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+/* Loader animations */
+@keyframes drawStroke {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes fadeFill {
+  to { fill: #1A1814; }
+}
+
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes blinkTextCursor {
+  from { border-right-color: rgba(138,134,128,0.75); }
+  to { border-right-color: transparent; }
+}
+
+.typewriter-text {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid rgba(138,134,128,0.75);
+  animation: typewriter 1.2s steps(28, end) 2.5s both,
+             blinkTextCursor 500ms steps(28, end) infinite normal;
+}
+
+@keyframes loaderLogoIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Scroll reveal */
+.will-animate {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.animate-in {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+/* Map ping */
+@keyframes pp-ping {
+  75%, 100% { transform: scale(2.5); opacity: 0; }
+}
+.pp-ping {
+  animation: pp-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Hand-drawn underline for hero */
+.sketch-underline {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 8px;
+  color: #22C55E;
+}
+.sketch-underline::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='12' viewBox='0 0 200 12' preserveAspectRatio='none'%3E%3Cpath d='M2 8 Q50 4 100 8 Q150 10 198 6' stroke='%2322C55E' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  background-size: 100% 100%;
+}
