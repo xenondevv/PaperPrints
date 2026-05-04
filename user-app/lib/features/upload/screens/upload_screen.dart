@@ -48,7 +48,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   int _copies = 1;
   bool _doubleSided = false;
   bool _printEntire = true;
-  _ColorMode _colorMode = _ColorMode.autoDetect;
+  _ColorMode _colorMode = _ColorMode.colored;
   _Orientation _orientation = _Orientation.portrait;
   Map<int, String> _pageTypes = {};
   Set<int> _selectedPages = {}; // empty = all pages
@@ -100,10 +100,22 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     if (mounted) setState(() => _loadingVendor = false);
   }
 
+  // Allowed file extensions (NO video formats like mp4)
+  static const _allowedExtensions = [
+    'pdf',
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp',
+    'doc', 'docx',
+    'ppt', 'pptx',
+  ];
+
+  // Office document extensions that the backend converts to PDF
+  static const _docExts = {'doc', 'docx', 'ppt', 'pptx'};
+
   /// Initial pick — allows selecting multiple files at once
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
+      type: FileType.custom,
+      allowedExtensions: _allowedExtensions,
       withData: kIsWeb,
       allowMultiple: true,
     );
@@ -121,7 +133,8 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   /// Add button — pick more files and MERGE with existing
   Future<void> _addMoreFiles() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
+      type: FileType.custom,
+      allowedExtensions: _allowedExtensions,
       withData: kIsWeb,
       allowMultiple: true,
     );
@@ -714,6 +727,75 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     }
   }
 
+  /// Rich placeholder for non-renderable files (docx, pptx, etc.)
+  Widget _buildDocPlaceholder(int globalIdx) {
+    // Find which file this index belongs to
+    String fileName = 'Document';
+    String ext = '';
+    int offset = 0;
+    for (int f = 0; f < _files.length; f++) {
+      final fc = _filePageCounts.length > f ? _filePageCounts[f] : 0;
+      if (globalIdx < offset + fc) {
+        fileName = _files[f].name;
+        ext = _files[f].extension?.toLowerCase() ?? '';
+        break;
+      }
+      offset += fc;
+    }
+
+    // File-type color scheme
+    final (Color bgColor, Color accentColor, IconData icon) = switch (ext) {
+      'doc' || 'docx' => (const Color(0xFFE3F2FD), const Color(0xFF1565C0), Icons.description_rounded),
+      'ppt' || 'pptx' => (const Color(0xFFFBE9E7), const Color(0xFFE64A19), Icons.slideshow_rounded),
+      _ => (const Color(0xFFF5F5F5), AppColors.textTertiary, Icons.insert_drive_file_outlined),
+    };
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(7),
+      child: Container(
+        color: bgColor,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: accentColor, size: 32),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                fileName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: accentColor,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                ext.toUpperCase(),
+                style: TextStyle(
+                  color: accentColor,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showSelectPages() async {
     final result = await showModalBottomSheet<Set<int>>(
       context: context,
@@ -997,7 +1079,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
             const SizedBox(height: 28),
 
             // File picker
-            const Text('UPLOAD PDF',
+            const Text('UPLOAD FILES',
                 style: TextStyle(
                     color: AppColors.textTertiary,
                     fontSize: 11,
@@ -1017,16 +1099,16 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                   color: AppColors.primarySurface,
                 ),
                 child: const Column(children: [
-                  Icon(Icons.picture_as_pdf_outlined,
+                  Icon(Icons.upload_file_outlined,
                       color: AppColors.primary, size: 44),
                   SizedBox(height: 10),
-                  Text('Tap to select PDF',
+                  Text('Tap to select files',
                       style: TextStyle(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.w600,
                           fontSize: 16)),
                   SizedBox(height: 4),
-                  Text('Max 50 MB',
+                  Text('PDF, Word, PowerPoint, Images · Max 50 MB',
                       style: TextStyle(
                           color: AppColors.textTertiary, fontSize: 12)),
                 ]),
@@ -1124,7 +1206,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                                         ),
                                       ),
                                     );
-                                  } else {
+                                  } else if (ext == 'pdf') {
                                     final localPage = i - offset + 1;
                                     Navigator.of(context).push(MaterialPageRoute(
                                       builder: (_) => PdfViewerScreen(
@@ -1132,6 +1214,15 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                                         initialPage: localPage,
                                       ),
                                     ));
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Preview not available for ${ext.toUpperCase()} files.'),
+                                        backgroundColor: AppColors.textSecondary,
+                                        behavior: SnackBarBehavior.floating,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
                                   }
                                   return;
                                 }
@@ -1151,7 +1242,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                                       borderRadius: BorderRadius.circular(7),
                                       child: Image.memory(thumb, fit: BoxFit.cover),
                                     )
-                                  : Center(child: _fileIconForIndex(i)),
+                                  : _buildDocPlaceholder(i),
                             ),
                           );
                         },
@@ -1341,14 +1432,20 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                               Expanded(
                                 child: _ColorOptionTile(
                                   icon: Icons.auto_fix_high,
-                                  iconColor: AppColors.primary,
+                                  iconColor: AppColors.textTertiary,
                                   title: 'Auto Detect',
-                                  subtitle: 'Color + B&W',
-                                  selected:
-                                      _colorMode == _ColorMode.autoDetect,
-                                  onTap: () => setState(
-                                      () =>
-                                          _colorMode = _ColorMode.autoDetect),
+                                  subtitle: 'Coming Soon',
+                                  selected: false,
+                                  disabled: true,
+                                  onTap: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Auto-detect is coming soon!'),
+                                        behavior: SnackBarBehavior.floating,
+                                        duration: Duration(seconds: 1),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                               const SizedBox(width: 10),
