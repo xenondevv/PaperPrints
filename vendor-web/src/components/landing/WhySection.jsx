@@ -28,7 +28,7 @@ export default function WhySection() {
           color: '#8A8680',
           marginBottom: 16
         }}>
-          // WHY PAPERPRINTS
+          {'// WHY PAPERPRINTS'}
         </p>
         <h2 style={{
           fontFamily: "Georgia, serif",

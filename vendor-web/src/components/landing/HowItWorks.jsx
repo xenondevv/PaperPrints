@@ -33,7 +33,7 @@ export default function HowItWorks() {
           color: '#8A8680',
           marginBottom: 16
         }}>
-          // HOW IT WORKS
+          {'// HOW IT WORKS'}
         </p>
         <h2 style={{
           fontFamily: "Georgia, serif",

@@ -35,7 +35,7 @@ export default function DownloadApp() {
         {/* Left */}
         <div className="will-animate">
           <p style={{ fontFamily: "'Courier New', Courier, monospace", color: '#22C55E', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 16 }}>
-            // GET THE APP
+            {'// GET THE APP'}
           </p>
           <h2 style={{ fontFamily: "Georgia, serif", fontSize: 'clamp(36px,5vw,52px)', fontWeight: 700, letterSpacing: '-0.03em', color: '#FFFFFF', marginBottom: 24 }}>
             Your print shop,<br />in your pocket.
