@@ -1,4 +1,11 @@
 const http = require('http');
+
+console.log("=== SERVER.JS STARTING ===");
+console.log("Node version:", process.version);
+console.log("ENV PORT:", process.env.PORT);
+console.log("ENV DATABASE_URL is set:", !!process.env.DATABASE_URL);
+console.log("==========================");
+
 const app = require('./app');
 const { setupSockets } = require('./sockets');
 const env = require('./config/env');
