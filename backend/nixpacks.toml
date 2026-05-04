@@ -1,2 +1,0 @@
-[phases.setup]
-aptPkgs = ["...", "libreoffice-core", "libreoffice-writer", "libreoffice-impress", "fonts-liberation"]

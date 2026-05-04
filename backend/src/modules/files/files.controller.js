@@ -5,33 +5,6 @@ const { v4: uuidv4 }    = require('uuid');
 const { query }          = require('../../config/db');
 const { uploadToS3, generatePresignedUrl } = require('../../services/s3.service');
 const env                = require('../../config/env');
-const libre              = require('libreoffice-convert');
-const { promisify }      = require('util');
-
-const libreConvert = promisify(libre.convert);
-
-// MIME types that need conversion to PDF before S3 upload
-const CONVERTIBLE_MIMES = new Set([
-  'application/msword',                                                          // .doc
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',      // .docx
-  'application/vnd.ms-powerpoint',                                               // .ppt
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',    // .pptx
-]);
-
-/**
- * Convert a document buffer (docx/pptx/doc/ppt) to PDF using LibreOffice.
- * Returns { pdfBuffer, pdfName, pdfMime }.
- */
-async function convertToPdf(buffer, originalname) {
-  console.log(`[files] Converting "${originalname}" to PDF via LibreOffice…`);
-  const pdfBuffer = await libreConvert(buffer, '.pdf', undefined);
-  const baseName  = path.basename(originalname, path.extname(originalname));
-  return {
-    pdfBuffer,
-    pdfName: `${baseName}.pdf`,
-    pdfMime: 'application/pdf',
-  };
-}
 
 // ── POST /api/files/upload ────────────────────────────────────────────────────
 async function handleUpload(req, res, next) {
@@ -40,20 +13,10 @@ async function handleUpload(req, res, next) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    let { buffer, originalname, mimetype, size } = req.file;
+    const { buffer, originalname, mimetype, size } = req.file;
     const userId = req.user.id;
 
-    // If the file is a Word/PowerPoint document, convert to PDF first
-    if (CONVERTIBLE_MIMES.has(mimetype)) {
-      const converted = await convertToPdf(buffer, originalname);
-      buffer       = converted.pdfBuffer;
-      originalname = converted.pdfName;
-      mimetype     = converted.pdfMime;
-      size         = buffer.length;
-      console.log(`[files] Conversion complete → "${originalname}" (${size} bytes)`);
-    }
-
-    // Build S3 key: uploads/{uuid}.pdf (always PDF after conversion)
+    // Build S3 key: uploads/{uuid}.{ext}
     const ext    = path.extname(originalname).toLowerCase() || '.bin';
     const fileId = uuidv4();
     const s3Key  = `uploads/${fileId}${ext}`;
