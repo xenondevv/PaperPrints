@@ -88,7 +88,13 @@ export default function Hero() {
         </p>
 
         {/* CTAs */}
-        <div className="flex gap-4 justify-center flex-wrap mt-12 will-animate" style={{ transitionDelay: '0.4s' }}>
+        <div className="hero-cta-group flex gap-4 justify-center flex-wrap mt-12 will-animate" style={{ transitionDelay: '0.4s' }}>
+          <style jsx>{`
+            @media (max-width: 639px) {
+              .hero-cta-group { flex-direction: column !important; align-items: stretch !important; padding: 0 12px; }
+              .hero-cta-group button { width: 100% !important; justify-content: center !important; }
+            }
+          `}</style>
           <button
             onClick={triggerApkDownload}
             className="flex items-center gap-3 cursor-pointer transition-all duration-200"

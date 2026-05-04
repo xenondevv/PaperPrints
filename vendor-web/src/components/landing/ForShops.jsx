@@ -36,7 +36,7 @@ export default function ForShops() {
             color: '#8A8680',
             marginBottom: 16
           }}>
-            // FOR PRINT SHOPS
+            {'// FOR PRINT SHOPS'}
           </p>
           <h2 style={{
             fontFamily: "Georgia, serif",

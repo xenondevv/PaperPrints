@@ -33,11 +33,11 @@ export default function HowItWorks() {
           color: '#8A8680',
           marginBottom: 16
         }}>
-          // HOW IT WORKS
+          {'// HOW IT WORKS'}
         </p>
         <h2 style={{
           fontFamily: "Georgia, serif",
-          fontSize: 44,
+          fontSize: 'clamp(32px, 5vw, 44px)',
           fontWeight: 700,
           color: '#1A1814',
           letterSpacing: '-0.02em',
