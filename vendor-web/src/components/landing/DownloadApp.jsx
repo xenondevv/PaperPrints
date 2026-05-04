@@ -1,6 +1,6 @@
 'use client';
 import Image from 'next/image';
-import { triggerApkDownload } from './config';
+import { CONFIG } from './config';
 
 
 
@@ -49,7 +49,7 @@ export default function DownloadApp() {
             Free Android app.<br />Lightweight and built for speed.
           </p>
 
-          <button onClick={triggerApkDownload}
+          <a href={`/${CONFIG.APK_FILENAME}`} download="PaperPrints.apk"
             className="flex items-center gap-3 cursor-pointer transition-all duration-200"
             style={{
               background: '#22C55E',
@@ -60,6 +60,8 @@ export default function DownloadApp() {
               borderRadius: 4,
               border: 'none',
               filter: 'url(#roughpaper)',
+              textDecoration: 'none',
+              display: 'inline-flex',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.filter = 'url(#roughpaper) brightness(1.1)'; e.currentTarget.style.transform = 'scale(1.02)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.filter = 'url(#roughpaper)'; e.currentTarget.style.transform = 'none'; }}
@@ -69,7 +71,7 @@ export default function DownloadApp() {
               <div style={{ fontSize: 15 }}>Download for Android</div>
               <div style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: 11, opacity: 0.7, marginTop: 2 }}>Free · Direct APK</div>
             </div>
-          </button>
+          </a>
         </div>
 
         {/* Right – Phone */}
