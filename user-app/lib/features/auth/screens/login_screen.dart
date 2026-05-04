@@ -25,7 +25,7 @@ class LoginScreen extends ConsumerWidget {
               Center(
                 child: Image.asset(
                   'assets/logos/login_screen.png',
-                  width: 340,
+                  width: MediaQuery.of(context).size.width * 0.75,
                   fit: BoxFit.contain,
                 ),
               ),
@@ -33,15 +33,15 @@ class LoginScreen extends ConsumerWidget {
               const Spacer(flex: 2),
 
               // ── Feature pills ────────────────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
                 children: const [
                   _FeaturePill(
                       icon: Icons.upload_file_outlined, label: 'Upload PDF'),
-                  SizedBox(width: 8),
                   _FeaturePill(
                       icon: Icons.storefront_outlined, label: 'Find shops'),
-                  SizedBox(width: 8),
                   _FeaturePill(
                       icon: Icons.qr_code_rounded, label: 'QR Pickup'),
                 ],

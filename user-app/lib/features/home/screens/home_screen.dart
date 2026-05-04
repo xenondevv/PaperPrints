@@ -15,22 +15,51 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   String _locationLine1 = 'Your Location';
   String _locationLine2 = 'Detecting...';
   int _bannerPage = 0;
   final _pageCtrl = PageController();
 
+  // Cache last known position so we can reload shops without re-fetching GPS
+  double? _lastLat;
+  double? _lastLng;
+  bool _initDone = false;
+  int _retryCount = 0;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pageCtrl.dispose();
     super.dispose();
+  }
+
+  /// Called when app lifecycle changes — auto-refresh shops on resume
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _retryCount = 0; // reset retries on resume
+      _refreshShops();
+    }
+  }
+
+  /// Quick refresh using cached position (no GPS re-fetch)
+  Future<void> _refreshShops() async {
+    if (_lastLat != null && _lastLng != null) {
+      await ref
+          .read(nearbyShopsProvider.notifier)
+          .load(_lastLat!, _lastLng!);
+    } else {
+      await _init();
+    }
   }
 
   Future<void> _init() async {
@@ -47,6 +76,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final pos = await Geolocator.getCurrentPosition(
           locationSettings:
               const LocationSettings(accuracy: LocationAccuracy.medium));
+
+      // Cache position for future refreshes
+      _lastLat = pos.latitude;
+      _lastLng = pos.longitude;
 
       try {
         final marks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
@@ -67,6 +100,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       await ref
           .read(nearbyShopsProvider.notifier)
           .load(pos.latitude, pos.longitude);
+      _initDone = true;
     } catch (_) {
       if (mounted) setState(() => _locationLine2 = 'Enable location');
     }
@@ -79,6 +113,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final initial = user?.name.isNotEmpty == true
         ? user!.name[0].toUpperCase()
         : 'U';
+
+    // Safety net: if shops are empty after init, auto-retry (max 3 times)
+    if (_initDone && shopsState.shops.isEmpty && !shopsState.isLoading && _retryCount < 3) {
+      _retryCount++;
+      Future.microtask(() => _refreshShops());
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F3F5),

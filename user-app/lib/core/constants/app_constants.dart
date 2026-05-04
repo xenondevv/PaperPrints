@@ -2,11 +2,11 @@ class AppConstants {
   // API
   static const apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://172.16.38.23:3000/api',
+    defaultValue: 'https://paperprints-production.up.railway.app/api',
   );
   static const socketUrl = String.fromEnvironment(
     'SOCKET_URL',
-    defaultValue: 'http://172.16.38.23:3000',
+    defaultValue: 'https://paperprints-production.up.railway.app',
   );
 
   // Storage keys

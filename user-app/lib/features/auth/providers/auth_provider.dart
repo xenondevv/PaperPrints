@@ -134,9 +134,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       debugPrint('🔴 Stack trace: $st');
       state = state.copyWith(
         isLoading: false,
-        error: 'Sign-in failed: $e',
+        error: 'Sign in failed. Please check your internet connection and try again.',
       );
-      rethrow;
     }
   }
 

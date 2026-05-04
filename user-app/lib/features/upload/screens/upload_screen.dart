@@ -352,6 +352,10 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         continue;
       }
 
+      if (ext != 'pdf') {
+        continue; // Skip DOCX, PPTX, etc. They can't be rendered client-side.
+      }
+
       // For PDFs, open ONCE
       final doc = kIsWeb ? await PdfDocument.openData(pFile.bytes!) : await PdfDocument.openFile(pFile.path!);
       try {
@@ -431,6 +435,17 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     final resolved = _resolvedPages();
     final total = _pageCountRaw;
 
+    // Collect IDs for non-mergeable files (docx, pptx)
+    final nonMergeableIds = <String>[];
+    for (int i = 0; i < _files.length; i++) {
+      final ext = _files[i].extension?.toLowerCase() ?? '';
+      if (ext != 'pdf' && !_imageExts.contains(ext)) {
+        if (_fileRecords.length > i && _fileRecords[i] != null && _fileRecords[i]!['id'] != null) {
+          nonMergeableIds.add(_fileRecords[i]!['id'].toString());
+        }
+      }
+    }
+
     // Determine which global pages are active
     final activePages = _selectedPages.isEmpty
         ? List.generate(total, (i) => i + 1)
@@ -439,15 +454,23 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     if (_colorMode == _ColorMode.colored || _colorMode == _ColorMode.bw) {
       // Single merged PDF — all pages same color mode
       final label = _colorMode == _ColorMode.colored ? 'color' : 'bw';
-      debugPrint('Merging ${activePages.length} pages into single $label PDF');
-      final mergedBytes = await _buildMergedPdf(activePages, label);
-      final record = await FilesRepository().upload(
-        'merged_${label}_${DateTime.now().millisecondsSinceEpoch}.pdf',
-        bytes: mergedBytes,
-        onProgress: (sent, total) =>
-            setState(() => _uploadProgress = sent / total),
-      );
-      return [record['id'].toString()];
+      
+      final fileIds = [...nonMergeableIds];
+      
+      if (activePages.isNotEmpty) {
+        debugPrint('Merging ${activePages.length} pages into single $label PDF');
+        final mergedBytes = await _buildMergedPdf(activePages, label);
+        if (mergedBytes.isNotEmpty) {
+          final record = await FilesRepository().upload(
+            'merged_${label}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+            bytes: mergedBytes,
+            onProgress: (sent, total) =>
+                setState(() => _uploadProgress = sent / total),
+          );
+          fileIds.add(record['id'].toString());
+        }
+      }
+      return fileIds;
     }
 
     // Auto Detect or Manual — split into color and B&W PDFs
@@ -467,36 +490,40 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       bwPages.addAll(activePages);
     }
 
-    final fileIds = <String>[];
+    final fileIds = [...nonMergeableIds];
     int step = 0;
     final totalSteps = (colorPages.isNotEmpty ? 1 : 0) + (bwPages.isNotEmpty ? 1 : 0);
 
     if (bwPages.isNotEmpty) {
       debugPrint('Merging ${bwPages.length} B&W pages into PDF');
       final bwBytes = await _buildMergedPdf(bwPages, 'bw');
-      final record = await FilesRepository().upload(
-        'merged_bw_${DateTime.now().millisecondsSinceEpoch}.pdf',
-        bytes: bwBytes,
-        onProgress: (sent, total) {
-          step = 0;
-          setState(() => _uploadProgress = (step + sent / total) / totalSteps);
-        },
-      );
-      fileIds.add(record['id'].toString());
+      if (bwBytes.isNotEmpty) {
+        final record = await FilesRepository().upload(
+          'merged_bw_${DateTime.now().millisecondsSinceEpoch}.pdf',
+          bytes: bwBytes,
+          onProgress: (sent, total) {
+            step = 0;
+            setState(() => _uploadProgress = (step + sent / total) / totalSteps);
+          },
+        );
+        fileIds.add(record['id'].toString());
+      }
     }
 
     if (colorPages.isNotEmpty) {
       debugPrint('Merging ${colorPages.length} Color pages into PDF');
       final colorBytes = await _buildMergedPdf(colorPages, 'color');
-      final record = await FilesRepository().upload(
-        'merged_color_${DateTime.now().millisecondsSinceEpoch}.pdf',
-        bytes: colorBytes,
-        onProgress: (sent, total) {
-          step = 1;
-          setState(() => _uploadProgress = (step + sent / total) / totalSteps);
-        },
-      );
-      fileIds.add(record['id'].toString());
+      if (colorBytes.isNotEmpty) {
+        final record = await FilesRepository().upload(
+          'merged_color_${DateTime.now().millisecondsSinceEpoch}.pdf',
+          bytes: colorBytes,
+          onProgress: (sent, total) {
+            step = 1;
+            setState(() => _uploadProgress = (step + sent / total) / totalSteps);
+          },
+        );
+        fileIds.add(record['id'].toString());
+      }
     }
 
     return fileIds;
