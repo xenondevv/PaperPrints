@@ -15,8 +15,5 @@ COPY backend/src ./src
 # Create uploads directory
 RUN mkdir -p /app/uploads
 
-# Expose port (Railway injects PORT env var)
-EXPOSE 3000
-
 # Start the server
 CMD ["node", "src/server.js"]
