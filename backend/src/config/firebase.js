@@ -25,7 +25,12 @@ if (env.firebase?.serviceAccountJson) {
   });
 } else {
   // Will fail at runtime if neither is set — surface a clear error
-  app = admin.initializeApp();
+  console.warn('⚠️  No Firebase service account configured. Set FIREBASE_SERVICE_ACCOUNT_JSON env var for production.');
+  try {
+    app = admin.initializeApp();
+  } catch (err) {
+    console.error('Firebase initialization failed:', err.message);
+  }
 }
 
 module.exports = admin;

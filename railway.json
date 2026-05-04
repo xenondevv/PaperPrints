@@ -7,7 +7,7 @@
   },
   "deploy": {
     "startCommand": "sh -c 'cd backend && node src/server.js'",
-    "healthcheckPath": "/api/health",
+    "healthcheckPath": "/health",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
