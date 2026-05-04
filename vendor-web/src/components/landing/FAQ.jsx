@@ -21,7 +21,7 @@ export default function FAQ() {
 
       <div style={{ maxWidth: 640, margin: '0 auto', position: 'relative', zIndex: 11, paddingTop: 32 }}>
         <div className="text-center" style={{ marginBottom: 64 }}>
-          <h2 style={{ fontFamily: "Georgia, serif", fontSize: 44, fontWeight: 700, color: '#1A1814' }}>
+          <h2 style={{ fontFamily: "Georgia, serif", fontSize: 'clamp(32px, 5vw, 44px)', fontWeight: 700, color: '#1A1814' }}>
             Questions.
           </h2>
         </div>

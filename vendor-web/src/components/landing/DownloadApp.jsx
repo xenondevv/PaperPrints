@@ -26,14 +26,19 @@ export default function DownloadApp() {
         backgroundSize: '24px 24px',
       }} />
 
-      <div className="download-grid" style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr', gap: 80, maxWidth: 1024, margin: '0 auto', alignItems: 'center' }}>
+      <div className="download-grid" style={{ position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr', gap: 48, maxWidth: 1024, margin: '0 auto', alignItems: 'center' }}>
         <style jsx>{`
           @media (min-width: 768px) {
-            .download-grid { grid-template-columns: 1fr 1fr !important; }
+            .download-grid { grid-template-columns: 1fr 1fr !important; gap: 80px !important; }
+          }
+          @media (max-width: 767px) {
+            .download-text-wrapper { text-align: center !important; }
+            .download-text-wrapper button { margin: 0 auto !important; }
+            .download-phone-wrapper { order: -1; }
           }
         `}</style>
         {/* Left */}
-        <div className="will-animate">
+        <div className="will-animate download-text-wrapper">
           <p style={{ fontFamily: "'Courier New', Courier, monospace", color: '#22C55E', fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 16 }}>
             {'// GET THE APP'}
           </p>
@@ -68,13 +73,13 @@ export default function DownloadApp() {
         </div>
 
         {/* Right – Phone */}
-        <div className="will-animate" style={{ transitionDelay: '150ms' }}>
+        <div className="will-animate download-phone-wrapper" style={{ transitionDelay: '150ms' }}>
           <div className="relative mx-auto" style={{
-            width: 260,
-            height: 520,
-            borderRadius: 32,
+            width: 220,
+            height: 440,
+            borderRadius: 28,
             overflow: 'hidden',
-            border: '6px solid #2D2A25',
+            border: '5px solid #2D2A25',
             boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
           }}>
             <Image
@@ -85,6 +90,11 @@ export default function DownloadApp() {
             />
           </div>
         </div>
+        <style jsx>{`
+          @media (min-width: 768px) {
+            .download-phone-wrapper > div:first-child { width: 260px !important; height: 520px !important; border-radius: 32px !important; }
+          }
+        `}</style>
       </div>
     </section>
   );

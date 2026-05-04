@@ -15,19 +15,30 @@ const vendorLinks = [
 export default function Footer() {
   return (
     <footer style={{ background: '#1C1A16', padding: '60px 24px 40px' }}>
-      <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
-          {/* Col 1 – Brand */}
-          <div className="md:col-span-2">
-            <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', background: '#FFFFFF', position: 'relative' }}>
+      <div style={{ maxWidth: 1152, margin: '0 auto' }}>
+        <div className="footer-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 40, marginBottom: 64 }}>
+          <style jsx>{`
+            @media (min-width: 768px) {
+              .footer-grid { grid-template-columns: 2fr 1fr 1fr !important; gap: 48px !important; }
+            }
+            @media (max-width: 767px) {
+              .footer-grid { text-align: center !important; }
+              .footer-logo { margin: 0 auto !important; }
+              .footer-links { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; gap: 16px !important; }
+              .footer-bottom { justify-content: center !important; }
+            }
+          `}</style>
+          <div>
+            <div className="footer-logo" style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', background: '#FFFFFF', margin: '0 auto 0 0' }}>
               <Image
                 src="/main_logo.png"
                 alt="PaperPrints"
                 width={160}
                 height={160}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.15)' }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.2)' }}
               />
             </div>
+
             <p style={{ 
               fontFamily: "'Courier New', Courier, monospace", 
               fontSize: 13, 
@@ -51,9 +62,8 @@ export default function Footer() {
             </a>
           </div>
 
-          {/* Col 2 – Platform */}
           <div>
-            <ul className="space-y-4 list-none p-0 m-0">
+            <ul className="footer-links list-none p-0 m-0" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {platformLinks.map((l) => (
                 <li key={l.target}>
                   <button
@@ -74,9 +84,8 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 3 – Vendors */}
           <div>
-            <ul className="space-y-4 list-none p-0 m-0">
+            <ul className="footer-links list-none p-0 m-0" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {vendorLinks.map((l) => (
                 <li key={l.label}>
                   <button
@@ -117,7 +126,7 @@ export default function Footer() {
         <div style={{ borderTop: '1px dashed rgba(255,255,255,0.08)', marginBottom: 32 }} />
 
         {/* Bottom */}
-        <div className="flex justify-between items-center flex-wrap gap-4">
+        <div className="footer-bottom" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <span style={{ fontFamily: "'Courier New', Courier, monospace", color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>© 2026 PaperPrints. All rights reserved.</span>
           <span style={{ fontFamily: "'Courier New', Courier, monospace", color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>Made with ♥ in India</span>
         </div>
