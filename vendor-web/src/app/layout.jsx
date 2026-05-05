@@ -1,5 +1,6 @@
 import './globals.css';
 import { AuthProvider } from '../context/AuthContext';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata = {
   title: 'PaperPrint — Vendor Dashboard',
@@ -16,6 +17,7 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           {children}
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
