@@ -453,44 +453,50 @@ function OrderDetailModal({ order, onClose }) {
   const handlePrint = async (fileId, fallbackUrl) => {
     const key = fileId || fallbackUrl;
     setPrintingFileKey(key);
+    // Open blank tab synchronously (within user gesture) to avoid popup blocker
+    const win = window.open('about:blank', '_blank');
     try {
       const url = await resolveUrl(fileId, fallbackUrl);
-      if (!url) { setPrintingFileKey(null); return; }
-      const resp = await fetch(url);
-      const blob = await resp.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const iframe = document.createElement('iframe');
-      iframe.style.cssText = 'position:fixed;top:-10000px;left:-10000px;width:1px;height:1px;';
-      document.body.appendChild(iframe);
-      iframe.src = blobUrl;
-      iframe.onload = () => {
-        setPrintingFileKey(null);
-        try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch { window.open(url, '_blank'); }
-        setTimeout(() => { document.body.removeChild(iframe); URL.revokeObjectURL(blobUrl); }, 2000);
-      };
-    } catch { setPrintingFileKey(null); }
+      if (!url) { if (win) win.close(); setPrintingFileKey(null); return; }
+      if (win) {
+        win.location.href = url;
+      } else {
+        // Fallback if popup was still blocked
+        window.location.href = url;
+      }
+    } catch (err) { console.error('Print failed:', err); if (win) win.close(); }
+    setPrintingFileKey(null);
   };
 
   const handleDownload = async (fileId, fallbackUrl, fileName) => {
     const key = fileId || fallbackUrl;
     setDownloadingFileKey(key);
+    const win = window.open('about:blank', '_blank');
     try {
       const url = await resolveUrl(fileId, fallbackUrl);
-      if (!url) { setDownloadingFileKey(null); return; }
-      const a = document.createElement('a');
-      a.href = url; a.download = fileName || 'document.pdf'; a.target = '_blank';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    } catch { }
+      if (!url) { if (win) win.close(); setDownloadingFileKey(null); return; }
+      if (win) {
+        win.location.href = url;
+      } else {
+        window.location.href = url;
+      }
+    } catch (err) { console.error('Download failed:', err); if (win) win.close(); }
     setDownloadingFileKey(null);
   };
 
   const handleOpen = async (fileId, fallbackUrl) => {
     const key = fileId || fallbackUrl;
     setOpeningFileKey(key);
+    const win = window.open('about:blank', '_blank');
     try {
       const url = await resolveUrl(fileId, fallbackUrl);
-      if (url) window.open(url, '_blank');
-    } catch { }
+      if (!url) { if (win) win.close(); setOpeningFileKey(null); return; }
+      if (win) {
+        win.location.href = url;
+      } else {
+        window.location.href = url;
+      }
+    } catch (err) { console.error('Open failed:', err); if (win) win.close(); }
     setOpeningFileKey(null);
   };
 
@@ -643,6 +649,30 @@ function FileCard({ label, fileId, url, fileName, variant, onPrint, onDownload, 
 
   const spinner = <span style={{ display: 'inline-block', width: 11, height: 11, border: '2px solid #99F6E4', borderTopColor: '#0D9488', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />;
 
+  let iconSvg;
+  if (label.includes('B&W')) {
+    iconSvg = (
+      <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18m0-18a9 9 0 110 18A9 9 0 0112 3z" />
+        <path d="M12 3a9 9 0 000 18" fill="currentColor" />
+      </svg>
+    );
+  } else if (label.includes('COLOR')) {
+    iconSvg = (
+      <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+        <circle cx="9" cy="15" r="4.5" />
+        <circle cx="15" cy="15" r="4.5" />
+        <circle cx="12" cy="9.5" r="4.5" />
+      </svg>
+    );
+  } else {
+    iconSvg = (
+      <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, opacity: disabled ? 0.35 : 1 }}>
       <button onClick={() => hasFile && !isOpening && onOpen(fileId, url)} disabled={!hasFile || disabled || isOpening}
@@ -655,11 +685,7 @@ function FileCard({ label, fileId, url, fileName, variant, onPrint, onDownload, 
           border: disabled ? '1px solid #D1D5DB' : (isSolid ? '1px solid #0D9488' : '1.5px solid #0D9488'),
           cursor: (hasFile && !isOpening) ? 'pointer' : 'not-allowed', opacity: hasFile ? 1 : 0.6, whiteSpace: 'nowrap',
         }}>
-        {isOpening ? spinner : (
-          <svg style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-          </svg>
-        )}
+        {isOpening ? spinner : iconSvg}
         {isOpening ? 'Opening…' : label}
       </button>
       <div style={{ display: 'flex', gap: 4 }}>
