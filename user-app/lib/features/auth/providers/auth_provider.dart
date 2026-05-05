@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -132,9 +133,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (e, st) {
       debugPrint('🔴 Sign-in error: $e');
       debugPrint('🔴 Stack trace: $st');
+
+      String errorMsg;
+      final errStr = e.toString().toLowerCase();
+      if (errStr.contains('failed host lookup') ||
+          errStr.contains('socketexception') ||
+          errStr.contains('connection refused') ||
+          (e is DioException && e.type == DioExceptionType.connectionError)) {
+        errorMsg =
+            'Unable to reach the server. This can happen on some mobile networks. '
+            'Try switching to Wi-Fi or restarting your mobile data.';
+      } else if (e is DioException && e.type == DioExceptionType.connectionTimeout) {
+        errorMsg = 'Connection timed out. Please check your internet and try again.';
+      } else {
+        errorMsg = 'Sign in failed. Please try again.';
+      }
+
       state = state.copyWith(
         isLoading: false,
-        error: 'Sign in failed. Please check your internet connection and try again.',
+        error: errorMsg,
       );
     }
   }

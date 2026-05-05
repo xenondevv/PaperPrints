@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS file_pages (
 -- ORDERS
 -- -----------------------------------------------------------------------------
 CREATE TYPE order_status AS ENUM (
-  'PENDING', 'ACCEPTED', 'PROCESSING', 'READY', 'COMPLETED', 'REJECTED', 'CANCELLED'
+  'PAYMENT_PENDING', 'PENDING', 'ACCEPTED', 'PROCESSING', 'READY', 'COMPLETED', 'REJECTED', 'CANCELLED'
 );
 
 CREATE TABLE IF NOT EXISTS orders (

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pdfx/pdfx.dart';
@@ -73,7 +74,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   }
 
   /// Load the first available vendor from the API.
-  /// Tries nearby first, then falls back to a wide radius.
+  /// Uses the device's actual GPS location to find nearby shops.
   Future<void> _loadVendor() async {
     setState(() => _loadingVendor = true);
     try {
@@ -85,9 +86,18 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         return;
       }
 
+      // Get the user's actual GPS location
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+      );
+
       // Try to load nearby shops (radius 50 km, then 1000 km as fallback)
       for (final radius in [50.0, 1000.0]) {
-        final raw = await VendorsRepository().getNearby(28.6, 77.2, radius);
+        final raw = await VendorsRepository().getNearby(pos.latitude, pos.longitude, radius);
         if (raw.isNotEmpty) {
           final vendor = VendorModel.fromJson(raw.first as Map<String, dynamic>);
           if (mounted) setState(() { _selectedVendor = vendor; _loadingVendor = false; });
@@ -264,11 +274,16 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         }
       });
     } catch (e) {
-      String errMsg = 'Upload failed for ${file.name}.';
-      if (e is DioException) {
+      String errMsg;
+      final errStr = e.toString().toLowerCase();
+      if (errStr.contains('failed host lookup') ||
+          errStr.contains('socketexception') ||
+          errStr.contains('connection refused')) {
+        errMsg = 'Cannot reach server. Try switching to Wi-Fi or restart mobile data.';
+      } else if (e is DioException) {
         errMsg = 'Upload failed: ${e.response?.data ?? e.message}';
       } else {
-        errMsg = 'Upload failed: $e';
+        errMsg = 'Upload failed for ${file.name}.';
       }
       _showError(errMsg);
       setState(() => _fileRecords[fileIdx] = null);
@@ -549,9 +564,20 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         _paymentInProgress = true;
       });
 
-      // Merge all files into 1 or 2 PDFs based on color mode,
+      // Step 0: Pre-render all pages FIRST so the cache is filled before merging
+      setState(() => _paymentOverlayMessage = 'Rendering pages (this might take a moment)');
+      final total = _pageCountRaw;
+      final activePages = _selectedPages.isEmpty
+          ? List.generate(total, (i) => i + 1)
+          : (_selectedPages.toList()..sort());
+
+      debugPrint('Pre-rendering ${activePages.length} pages to cache...');
+      await _preRenderPages(activePages);
+
+      // Step 1: Merge all files into 1 or 2 PDFs based on color mode,
       // then upload the merged PDF(s) and use those file IDs.
       setState(() {
+        _paymentOverlayMessage = 'Merging and uploading files';
         _uploadingCount++;
         _uploadProgress = 0;
       });
@@ -574,29 +600,26 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
       debugPrint('Placing order with merged file IDs: $fileIds');
 
-      // Step 0.5: Pre-render all pages ONCE and cache them for all subsequent PDF generations
-      setState(() => _paymentOverlayMessage = 'Rendering pages (this might take a moment)');
-      final total = _pageCountRaw;
-      final activePages = _selectedPages.isEmpty
-          ? List.generate(total, (i) => i + 1)
-          : (_selectedPages.toList()..sort());
-      
-      debugPrint('Pre-rendering ${activePages.length} pages to cache...');
-      await _preRenderPages(activePages);
+      // Build "original" PDF containing only the selected pages
+      String originalFileId;
+      if (_selectedPages.isEmpty) {
+        // All pages selected — use the raw uploaded file directly
+        originalFileId = uploadedRecords.first['id'].toString();
+      } else {
+        // Subset of pages selected — build a merged original with only those pages
+        setState(() => _paymentOverlayMessage = 'Preparing original file');
+        debugPrint('Building original merged PDF with ${activePages.length} selected pages');
+        final originalMergedBytes = await _buildMergedPdf(activePages, 'original');
+        final originalRecord = await FilesRepository().upload(
+          'merged_original_${DateTime.now().millisecondsSinceEpoch}.pdf',
+          bytes: originalMergedBytes,
+          onProgress: (sent, total) =>
+              setState(() => _uploadProgress = sent / total),
+        );
+        originalFileId = originalRecord['id'].toString();
+      }
 
-      // Step 0.75: Build the "original" merged PDF containing ALL selected pages (both B&W + Color combined)
-      setState(() => _paymentOverlayMessage = 'Preparing original file');
-      debugPrint('Building original merged PDF with ${activePages.length} selected pages');
-      final originalMergedBytes = await _buildMergedPdf(activePages, 'original');
-      final originalRecord = await FilesRepository().upload(
-        'merged_original_${DateTime.now().millisecondsSinceEpoch}.pdf',
-        bytes: originalMergedBytes,
-        onProgress: (sent, total) =>
-            setState(() => _uploadProgress = sent / total),
-      );
-      final originalFileId = originalRecord['id'].toString();
-
-      // Step 1: Create the order on the backend
+      // Step 2: Create the order on the backend
       setState(() => _paymentOverlayMessage = 'Creating your order');
       final order = await ref.read(ordersProvider.notifier).create({
         'vendor_id': _selectedVendor!.id,

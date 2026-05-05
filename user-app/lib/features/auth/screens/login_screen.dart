@@ -1,14 +1,186 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:paper_prints_user/core/network/connectivity_checker.dart';
 import 'package:paper_prints_user/core/theme/app_theme.dart';
 import 'package:paper_prints_user/features/auth/providers/auth_provider.dart';
 import 'package:paper_prints_user/shared/widgets/paper_prints_loader.dart';
 
-class LoginScreen extends ConsumerWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  String? _dnsIssue; // null = ok, 'no_internet', 'dns_blocked'
+
+  @override
+  void initState() {
+    super.initState();
+    _checkConnectivity();
+  }
+
+  Future<void> _checkConnectivity() async {
+    final issue = await ConnectivityChecker.diagnose();
+    if (mounted) {
+      setState(() {
+        _dnsIssue = issue;
+      });
+    }
+  }
+
+  void _showDnsHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(24),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.dns_rounded,
+                        color: AppColors.warning, size: 26),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('Network Issue Detected',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: AppColors.textPrimary)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Your mobile network (e.g. Jio) may be blocking our server address. '
+                'This is a known issue with some carriers.\n\n'
+                'To fix this, change your Private DNS setting:',
+                style: TextStyle(
+                    color: AppColors.textSecondary, fontSize: 14, height: 1.6),
+              ),
+              const SizedBox(height: 16),
+
+              // Steps
+              _stepTile('1', 'Open your phone Settings'),
+              _stepTile('2', 'Go to Wi-Fi & Network → Private DNS'),
+              _stepTile('3', 'Select "Private DNS provider hostname"'),
+              _stepTile('4', 'Enter:  dns.google', highlight: true),
+              _stepTile('5', 'Tap Save and reopen the app'),
+
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: AppColors.info.withValues(alpha: 0.2)),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, color: AppColors.info, size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Alternatively, connect to Wi-Fi — this issue only happens on certain mobile data networks.',
+                        style: TextStyle(
+                            color: AppColors.info, fontSize: 12, height: 1.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Actions
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _checkConnectivity();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text('I\'ve changed it — Retry',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Dismiss',
+                      style: TextStyle(color: AppColors.textTertiary)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stepTile(String num, String text, {bool highlight = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: highlight ? AppColors.primary : AppColors.surfaceAlt,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(num,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: highlight ? Colors.white : AppColors.textSecondary)),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(text,
+                style: TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    fontWeight: highlight ? FontWeight.w700 : FontWeight.w500,
+                    color: highlight
+                        ? AppColors.primary
+                        : AppColors.textPrimary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
 
     return Scaffold(
@@ -48,6 +220,38 @@ class LoginScreen extends ConsumerWidget {
               ),
 
               const Spacer(flex: 3),
+
+              // ── DNS Warning Banner ────────────────────────────────────
+              if (_dnsIssue == 'dns_blocked')
+                GestureDetector(
+                  onTap: _showDnsHelpDialog,
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 14),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: AppColors.warning.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.wifi_off_rounded,
+                          color: AppColors.warning, size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Your network is blocking our server. Tap here to fix.',
+                          style: TextStyle(
+                              color: Color(0xFF92400E),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: AppColors.warning, size: 20),
+                    ]),
+                  ),
+                ),
 
               // ── Error ────────────────────────────────────────────────
               if (auth.error != null)
