@@ -3,6 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import useGoogleMaps from '../hooks/useGoogleMaps';
 
+const defaultCenter = { lat: 20.5937, lng: 78.9629 }; // India
+const defaultZoom = 5;
+const selectedZoom = 17;
+
 export default function LocationPicker({
   initialLat,
   initialLng,
@@ -24,10 +28,6 @@ export default function LocationPicker({
   const [isDetecting, setIsDetecting] = useState(false);
   const [locationError, setLocationError] = useState('');
   const [confirmed, setConfirmed] = useState(false);
-
-  const defaultCenter = { lat: 20.5937, lng: 78.9629 }; // India
-  const defaultZoom = 5;
-  const selectedZoom = 17;
 
   // Sync initial props into state (handles async profile fetch in settings page)
   const initialSyncedRef = useRef(false);
