@@ -171,6 +171,8 @@ export default function PrivacyPolicyPage() {
             <Link href="/refund-policy" style={{ color: '#8A8680' }}>Refund Policy</Link>
             &nbsp;|&nbsp;
             <Link href="/contact" style={{ color: '#8A8680' }}>Contact Us</Link>
+            &nbsp;|&nbsp;
+            <Link href="/delete-account" style={{ color: '#8A8680' }}>Delete Account</Link>
           </p>
         </div>
       </div>

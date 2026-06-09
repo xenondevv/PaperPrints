@@ -18,6 +18,7 @@ const legalLinks = [
   { label: 'Terms & Conditions', href: '/terms' },
   { label: 'Contact Us', href: '/contact' },
   { label: 'Refund Policy', href: '/refund-policy' },
+  { label: 'Delete Account', href: '/delete-account' },
 ];
 
 export default function Footer() {
