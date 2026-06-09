@@ -104,7 +104,7 @@ async function registerVendor(userId, data) {
   // 2. Insert vendor profile
   const vendorRes = await query(
     `INSERT INTO vendors (user_id, owner_name, shop_name, phone, address, email, location_lat, location_lng, is_active, is_verified)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, true)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, false)
      RETURNING *`,
     [userId, ownerName, shopName, phone, address, email || null, lat, lng]
   );
