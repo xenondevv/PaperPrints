@@ -20,7 +20,8 @@ export default function useSocket({ onNewOrder, onOrderUpdate } = {}) {
 
     const socket = io(SOCKET_URL, {
       auth: { token },
-      transports: ['websocket', 'polling'],
+      // Omit transports: ['websocket'] or place polling first so Jio CGNAT/firewalls fall back gracefully
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,

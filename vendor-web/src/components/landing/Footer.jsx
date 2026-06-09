@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import { CONFIG, scrollToSection } from './config';
 
 const platformLinks = [
@@ -10,6 +11,13 @@ const platformLinks = [
 const vendorLinks = [
   { label: 'Register Your Shop', target: 'for-shops' },
   { label: 'For Print Shops', target: 'for-shops' },
+];
+
+const legalLinks = [
+  { label: 'Privacy Policy', href: '/privacy-policy' },
+  { label: 'Terms & Conditions', href: '/terms' },
+  { label: 'Contact Us', href: '/contact' },
+  { label: 'Refund Policy', href: '/refund-policy' },
 ];
 
 export default function Footer() {
@@ -120,6 +128,28 @@ export default function Footer() {
               </li>
             </ul>
           </div>
+        </div>
+
+        {/* Legal Links */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 24px', marginBottom: 40, justifyContent: 'center' }}>
+          {legalLinks.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              style={{
+                fontFamily: "'Courier New', Courier, monospace",
+                fontSize: 11,
+                color: 'rgba(255,255,255,0.3)',
+                textDecoration: 'none',
+                letterSpacing: '0.04em',
+                transition: 'color 0.2s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; }}
+            >
+              {l.label}
+            </Link>
+          ))}
         </div>
 
         {/* Divider */}
