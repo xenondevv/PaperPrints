@@ -194,7 +194,7 @@ async function verifyPayment(orderId) {
 
           // --- AUTO ACCEPT LOGIC FOR DEMO SHOPS ---
           if (vendorData.is_demo) {
-            console.log(`[DEMO SHOP] Auto-accepting order ${orderId} in 15 seconds...`);
+            console.log(`[DEMO SHOP] Auto-accepting order ${orderId} in 30 seconds...`);
             setTimeout(async () => {
               try {
                 await acceptOrder(vendorData.user_id, orderId, 15);
@@ -202,7 +202,7 @@ async function verifyPayment(orderId) {
               } catch (err) {
                 console.error(`[DEMO SHOP] Failed to auto-accept order ${orderId}:`, err.message);
               }
-            }, 15000);
+            }, 30000);
           }
           // --- END AUTO ACCEPT LOGIC ---
         }

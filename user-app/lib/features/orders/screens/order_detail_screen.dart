@@ -1,4 +1,5 @@
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,12 +21,35 @@ class OrderDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
+  Timer? _pollTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(ordersProvider.notifier).fetchById(widget.orderId);
       _connectSocket();
+      _startPollingIfPending();
+    });
+  }
+
+  void _startPollingIfPending() {
+    _pollTimer?.cancel();
+    final status = ref.read(ordersProvider).activeOrder?.status;
+    // Only poll while the order is waiting for vendor confirmation
+    if (status != OrderStatus.pending && status != 'PAYMENT_PENDING') return;
+
+    _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) async {
+      if (!mounted) {
+        _pollTimer?.cancel();
+        return;
+      }
+      await ref.read(ordersProvider.notifier).fetchById(widget.orderId);
+      final newStatus = ref.read(ordersProvider).activeOrder?.status;
+      // Stop polling once the order is no longer pending
+      if (newStatus != OrderStatus.pending && newStatus != 'PAYMENT_PENDING') {
+        _pollTimer?.cancel();
+      }
     });
   }
 
@@ -78,6 +102,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     SocketService.instance.offOrderEvents();
     super.dispose();
   }
