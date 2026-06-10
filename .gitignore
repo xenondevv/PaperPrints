@@ -60,3 +60,6 @@ build/
 *.bin
 *.stamp
 pubspec.lock
+.cxx/
+local.properties
+.flutter-plugins-dependencies

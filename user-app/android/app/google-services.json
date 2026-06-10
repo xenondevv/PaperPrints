@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1058165391039-agchk4ne1kma3jb1ro3m0ksqi7u0ij9p.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.paperprints.paper_prints_user",
+            "certificate_hash": "e6d125e7192d2ff9bf98ffc9ec5dfa02cbbcb6de"
+          }
+        },
+        {
           "client_id": "1058165391039-btn808kg1g70g5anva7vnu50b94v5vrt.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -35,6 +43,75 @@
           "android_info": {
             "package_name": "com.paperprints.paper_prints_user",
             "certificate_hash": "223a1e940d1c7528c5e4d503e6dbe944cf9ef66f"
+          }
+        },
+        {
+          "client_id": "1058165391039-361ued3ch5ljl10eb8t608s05ff40dms.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJJ1WbIT6VgLdlnF1p97r_4x3FkhVmvh0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1058165391039-361ued3ch5ljl10eb8t608s05ff40dms.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1058165391039:android:897c80ae80eb396be9500a",
+        "android_client_info": {
+          "package_name": "store.paperprints.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1058165391039-4sbso3n87ibubbeta7o57khjnanh3095.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "store.paperprints.app",
+            "certificate_hash": "e6d125e7192d2ff9bf98ffc9ec5dfa02cbbcb6de"
+          }
+        },
+        {
+          "client_id": "1058165391039-88ug8ckevop4o7d5hsu7lm30njgavags.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "store.paperprints.app",
+            "certificate_hash": "f9d401eae9f51c99706a99d5dafbfb5083d14081"
+          }
+        },
+        {
+          "client_id": "1058165391039-c9pd9qkkslacmm37r00f6hj7l1t7ip79.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "store.paperprints.app",
+            "certificate_hash": "4c47ec6d1cacd59c9f2e2b0806096ff1da0659cd"
+          }
+        },
+        {
+          "client_id": "1058165391039-m70mp7995nbjmundm4gsvnk0pgf9fg7d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "store.paperprints.app",
+            "certificate_hash": "223a1e940d1c7528c5e4d503e6dbe944cf9ef66f"
+          }
+        },
+        {
+          "client_id": "1058165391039-qcd7d10oh7godn5tc6h2dhghg3ur7jli.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "store.paperprints.app",
+            "certificate_hash": "437f4b5cb260360fc536ce9eccbcc787e06bdc52"
           }
         },
         {
