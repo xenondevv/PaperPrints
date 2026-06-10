@@ -197,7 +197,7 @@ async function verifyPayment(orderId) {
             console.log(`[DEMO SHOP] Auto-accepting order ${orderId} in 15 seconds...`);
             setTimeout(async () => {
               try {
-                await acceptOrder(vendorData.user_id, orderId, '15 mins');
+                await acceptOrder(vendorData.user_id, orderId, 15);
                 console.log(`[DEMO SHOP] Order ${orderId} auto-accepted.`);
               } catch (err) {
                 console.error(`[DEMO SHOP] Failed to auto-accept order ${orderId}:`, err.message);

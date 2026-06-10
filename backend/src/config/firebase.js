@@ -19,10 +19,20 @@ if (env.firebase?.serviceAccountJson) {
   });
 } else if (env.firebase?.serviceAccountPath) {
   // File path (convenient for local dev)
-  const serviceAccount = require(path.resolve(process.cwd(), env.firebase.serviceAccountPath));
-  app = admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+  try {
+    const serviceAccount = require(path.resolve(process.cwd(), env.firebase.serviceAccountPath));
+    app = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  } catch (err) {
+    console.error(`Firebase initialization failed with serviceAccountPath (${env.firebase.serviceAccountPath}):`, err.message);
+    console.warn('⚠️ Falling back to default app initialization...');
+    try {
+      app = admin.initializeApp();
+    } catch (fallbackErr) {
+      console.error('Fallback Firebase initialization failed:', fallbackErr.message);
+    }
+  }
 } else {
   // Will fail at runtime if neither is set — surface a clear error
   console.warn('⚠️  No Firebase service account configured. Set FIREBASE_SERVICE_ACCOUNT_JSON env var for production.');
