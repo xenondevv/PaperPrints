@@ -1,7 +1,7 @@
 name: paper_prints_user
 description: "Paper Prints — Customer Mobile App"
 publish_to: "none"
-version: 1.0.0+1
+version: 1.0.0+3
 
 environment:
   sdk: ^3.7.2

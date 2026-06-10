@@ -1,2 +1,0 @@
-/home/devansh/.gemini/antigravity/scratch/paper-prints/user-app/android/app/.cxx/Debug/4y18396y/x86/CMakeFiles/edit_cache.dir
-/home/devansh/.gemini/antigravity/scratch/paper-prints/user-app/android/app/.cxx/Debug/4y18396y/x86/CMakeFiles/rebuild_cache.dir
