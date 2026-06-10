@@ -182,13 +182,29 @@ async function verifyPayment(orderId) {
         const { emitNewOrderToVendor } = require('../../sockets/order.socket');
         const { getOrderById } = require('../orders/orders.service');
         
+        const { acceptOrder } = require('../orders/vendor-orders.service');
         const vendorUserRes = await query(
-          `SELECT user_id FROM vendors WHERE id = $1`, [order.vendor_id]
+          `SELECT user_id, is_demo FROM vendors WHERE id = $1`, [order.vendor_id]
         );
         if (vendorUserRes.rows[0]) {
+          const vendorData = vendorUserRes.rows[0];
           // We need the fully formatted order, getOrderById already formats it
           const fullOrder = await getOrderById(order.user_id, order.id);
-          emitNewOrderToVendor(vendorUserRes.rows[0].user_id, fullOrder);
+          emitNewOrderToVendor(vendorData.user_id, fullOrder);
+
+          // --- AUTO ACCEPT LOGIC FOR DEMO SHOPS ---
+          if (vendorData.is_demo) {
+            console.log(`[DEMO SHOP] Auto-accepting order ${orderId} in 15 seconds...`);
+            setTimeout(async () => {
+              try {
+                await acceptOrder(vendorData.user_id, orderId, '15 mins');
+                console.log(`[DEMO SHOP] Order ${orderId} auto-accepted.`);
+              } catch (err) {
+                console.error(`[DEMO SHOP] Failed to auto-accept order ${orderId}:`, err.message);
+              }
+            }, 15000);
+          }
+          // --- END AUTO ACCEPT LOGIC ---
         }
       } catch (e) {
         console.error('[socket] Failed to notify vendor after payment:', e.message);

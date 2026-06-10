@@ -18,23 +18,29 @@ async function getNearby(lat, lng, radiusKm = 10) {
         v.location_lat AS lat,
         v.location_lng AS lng,
         -- Haversine distance in km
+        CASE WHEN v.is_demo THEN 0 ELSE
         ( 6371 * acos(
             cos(radians($1)) * cos(radians(v.location_lat))
             * cos(radians(v.location_lng) - radians($2))
             + sin(radians($1)) * sin(radians(v.location_lat))
           )
-        ) AS distance_km,
+        ) END AS distance_km,
         row_to_json(vs) AS settings
      FROM vendors v
      LEFT JOIN vendor_settings vs ON vs.vendor_id = v.id
     WHERE v.is_active = TRUE
-      AND v.is_verified = TRUE
-      AND ( 6371 * acos(
-              cos(radians($1)) * cos(radians(v.location_lat))
-              * cos(radians(v.location_lng) - radians($2))
-              + sin(radians($1)) * sin(radians(v.location_lat))
-            )
-          ) <= $3
+      AND (
+          v.is_demo = TRUE OR
+          (
+            v.is_verified = TRUE AND
+            ( 6371 * acos(
+                cos(radians($1)) * cos(radians(v.location_lat))
+                * cos(radians(v.location_lng) - radians($2))
+                + sin(radians($1)) * sin(radians(v.location_lat))
+              )
+            ) <= $3
+          )
+      )
     ORDER BY distance_km ASC
     LIMIT 50`,
     [lat, lng, radiusKm]
