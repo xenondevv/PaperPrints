@@ -46,7 +46,7 @@ class PaymentService {
 
     // 2. Create CFSession
     final cfSession = CFSessionBuilder()
-        .setEnvironment(CFEnvironment.SANDBOX) // Change to PRODUCTION for live
+        .setEnvironment(CFEnvironment.PRODUCTION)
         .setOrderId(cfOrderId)
         .setPaymentSessionId(paymentSessionId)
         .build();
