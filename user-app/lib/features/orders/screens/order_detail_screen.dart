@@ -44,7 +44,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         _pollTimer?.cancel();
         return;
       }
-      await ref.read(ordersProvider.notifier).fetchById(widget.orderId);
+      await ref.read(ordersProvider.notifier).fetchById(widget.orderId, silent: true);
       final newStatus = ref.read(ordersProvider).activeOrder?.status;
       // Stop polling once the order is no longer pending
       if (newStatus != OrderStatus.pending && newStatus != 'PAYMENT_PENDING') {

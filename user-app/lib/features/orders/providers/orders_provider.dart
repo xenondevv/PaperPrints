@@ -161,8 +161,8 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
     }
   }
 
-  Future<void> fetchById(String id) async {
-    state = state.copyWith(isLoading: true);
+  Future<void> fetchById(String id, {bool silent = false}) async {
+    if (!silent) state = state.copyWith(isLoading: true);
     try {
       final raw = await _repo.getById(id);
       final order = OrderModel.fromJson(raw);
