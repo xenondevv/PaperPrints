@@ -166,8 +166,9 @@ export default function Navbar() {
               Vendor Login
             </button>
             <a
-              href={`/${CONFIG.APK_FILENAME}`}
-              download="PaperPrints.apk"
+              href={CONFIG.PLAY_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 background: '#1A1814',
                 color: '#F0EDE6',
@@ -176,17 +177,25 @@ export default function Navbar() {
                 fontSize: 13,
                 border: 'none',
                 borderRadius: 6,
-                padding: '10px 20px',
+                padding: '8px 16px',
                 cursor: 'pointer',
                 filter: 'url(#roughpaper)',
                 transition: 'all 0.2s ease',
                 textDecoration: 'none',
                 display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
               }}
               onMouseEnter={(e) => { e.currentTarget.style.background = '#22C55E'; e.currentTarget.style.color = '#0F0F0F'; }}
               onMouseLeave={(e) => { e.currentTarget.style.background = '#1A1814'; e.currentTarget.style.color = '#F0EDE6'; }}
             >
-              Download App
+              <svg width="14" height="16" viewBox="0 0 505 584" fill="none">
+                <path d="M4.93 6.81C1.77 10.07 0 15.14 0 21.84v540.32c0 6.7 1.77 11.77 4.93 15.03l.82.77L289.13 294.5v-5L5.75 6.04l-.82.77z" fill="#4285F4"/>
+                <path d="M383.6 389.04L289.13 294.5v-5l94.47-94.54 2.13 1.23 111.96 63.6c31.99 18.16 31.99 47.9 0 66.08L385.73 387.8l-2.13 1.24z" fill="#FFBA00"/>
+                <path d="M385.73 387.8L289.13 292 4.93 577.19c10.55 11.18 27.95 12.56 47.57 1.43L385.73 387.8" fill="#F84437"/>
+                <path d="M385.73 196.2L52.5 5.38C32.88-5.75 15.48-4.37 4.93 6.81L289.13 292l96.6-95.8z" fill="#34A853"/>
+              </svg>
+              Get it on Google Play
             </a>
           </div>
 
@@ -265,18 +274,26 @@ export default function Navbar() {
             Vendor Login
           </button>
           <a
-            href={`/${CONFIG.APK_FILENAME}`}
-            download="PaperPrints.apk"
+            href={CONFIG.PLAY_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={() => { setMenuOpen(false); }}
             style={{
               width: '100%', cursor: 'pointer', border: 'none',
               background: '#1A1814', color: '#F0EDE6',
               fontFamily: 'system-ui, sans-serif', fontWeight: 600, fontSize: 16,
               padding: '14px 0', borderRadius: 6, filter: 'url(#roughpaper)',
-              textDecoration: 'none', textAlign: 'center', display: 'block',
+              textDecoration: 'none', textAlign: 'center', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', gap: 10,
             }}
           >
-            Get the App
+            <svg width="16" height="18" viewBox="0 0 505 584" fill="none">
+              <path d="M4.93 6.81C1.77 10.07 0 15.14 0 21.84v540.32c0 6.7 1.77 11.77 4.93 15.03l.82.77L289.13 294.5v-5L5.75 6.04l-.82.77z" fill="#4285F4"/>
+              <path d="M383.6 389.04L289.13 294.5v-5l94.47-94.54 2.13 1.23 111.96 63.6c31.99 18.16 31.99 47.9 0 66.08L385.73 387.8l-2.13 1.24z" fill="#FFBA00"/>
+              <path d="M385.73 387.8L289.13 292 4.93 577.19c10.55 11.18 27.95 12.56 47.57 1.43L385.73 387.8" fill="#F84437"/>
+              <path d="M385.73 196.2L52.5 5.38C32.88-5.75 15.48-4.37 4.93 6.81L289.13 292l96.6-95.8z" fill="#34A853"/>
+            </svg>
+            Get it on Google Play
           </a>
         </div>
       </div>

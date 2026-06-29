@@ -49,14 +49,16 @@ export default function DownloadApp() {
             Free Android app.<br />Lightweight and built for speed.
           </p>
 
-          <a href={`/${CONFIG.APK_FILENAME}`} download="PaperPrints.apk"
+          <a href={CONFIG.PLAY_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center gap-3 cursor-pointer transition-all duration-200"
             style={{
               background: '#22C55E',
               color: '#0F0F0F',
               fontFamily: 'system-ui, sans-serif',
               fontWeight: 700,
-              padding: '16px 32px',
+              padding: '14px 28px',
               borderRadius: 4,
               border: 'none',
               filter: 'url(#roughpaper)',
@@ -66,10 +68,15 @@ export default function DownloadApp() {
             onMouseEnter={(e) => { e.currentTarget.style.filter = 'url(#roughpaper) brightness(1.1)'; e.currentTarget.style.transform = 'scale(1.02)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.filter = 'url(#roughpaper)'; e.currentTarget.style.transform = 'none'; }}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 2.227l-1.39 2.407a7.987 7.987 0 00-8.266 0L6.477 2.227a.393.393 0 00-.676.394l1.372 2.378A8.012 8.012 0 004 11.5h16a8.012 8.012 0 00-3.173-6.501l1.372-2.378a.393.393 0 00-.676-.394zM8.5 9a1 1 0 110-2 1 1 0 010 2zm7 0a1 1 0 110-2 1 1 0 010 2zM4 12.5h16v.5A8 8 0 014 13v-.5z" /></svg>
+            <svg width="24" height="26" viewBox="0 0 505 584" fill="none">
+              <path d="M4.93 6.81C1.77 10.07 0 15.14 0 21.84v540.32c0 6.7 1.77 11.77 4.93 15.03l.82.77L289.13 294.5v-5L5.75 6.04l-.82.77z" fill="#4285F4"/>
+              <path d="M383.6 389.04L289.13 294.5v-5l94.47-94.54 2.13 1.23 111.96 63.6c31.99 18.16 31.99 47.9 0 66.08L385.73 387.8l-2.13 1.24z" fill="#FFBA00"/>
+              <path d="M385.73 387.8L289.13 292 4.93 577.19c10.55 11.18 27.95 12.56 47.57 1.43L385.73 387.8" fill="#F84437"/>
+              <path d="M385.73 196.2L52.5 5.38C32.88-5.75 15.48-4.37 4.93 6.81L289.13 292l96.6-95.8z" fill="#34A853"/>
+            </svg>
             <div className="text-left">
-              <div style={{ fontSize: 15 }}>Download for Android</div>
-              <div style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: 11, opacity: 0.7, marginTop: 2 }}>Free · Direct APK</div>
+              <div style={{ fontSize: 10, fontWeight: 400, opacity: 0.7, lineHeight: 1, marginBottom: 2, fontFamily: "'Courier New', Courier, monospace" }}>GET IT ON</div>
+              <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.1 }}>Google Play</div>
             </div>
           </a>
         </div>
