@@ -180,16 +180,15 @@ async function verifyPayment(orderId) {
       try {
         const order = orderUpdateRes.rows[0];
         const { emitNewOrderToVendor } = require('../../sockets/order.socket');
-        const { getOrderById } = require('../orders/orders.service');
+        const { getVendorOrderById, acceptOrder } = require('../orders/vendor-orders.service');
         
-        const { acceptOrder } = require('../orders/vendor-orders.service');
         const vendorUserRes = await query(
           `SELECT user_id, is_demo FROM vendors WHERE id = $1`, [order.vendor_id]
         );
         if (vendorUserRes.rows[0]) {
           const vendorData = vendorUserRes.rows[0];
-          // We need the fully formatted order, getOrderById already formats it
-          const fullOrder = await getOrderById(order.user_id, order.id);
+          // Use the vendor-formatted order so customerName etc. are included
+          const fullOrder = await getVendorOrderById(vendorData.user_id, order.id);
           emitNewOrderToVendor(vendorData.user_id, fullOrder);
 
           // --- AUTO ACCEPT LOGIC FOR DEMO SHOPS ---
