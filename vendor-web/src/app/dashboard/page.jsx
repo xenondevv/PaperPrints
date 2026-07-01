@@ -66,9 +66,21 @@ function DashboardPage() {
   const [actionLoading, setActionLoading] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleNewOrder = useCallback((order) => {
+  const handleNewOrder = useCallback(async (order) => {
+    // Immediately show the order and play sound
     prependOrder(order); addNotification(order); playNewOrderSound();
-  }, [prependOrder, addNotification]);
+    // If customerName is missing (race condition), fetch full order details from API
+    if (!order.customerName && order.id) {
+      try {
+        const fullOrder = await fetchVendorOrderById(order.id);
+        if (fullOrder && fullOrder.customerName) {
+          updateOrder(order.id, fullOrder);
+        }
+      } catch (e) {
+        console.warn('[dashboard] Failed to enrich new order:', e.message);
+      }
+    }
+  }, [prependOrder, addNotification, updateOrder]);
 
   const handleOrderUpdate = useCallback((orderId, updates) => {
     updateOrder(orderId, updates);
