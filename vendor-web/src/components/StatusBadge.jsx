@@ -1,8 +1,9 @@
 'use client';
 
 const statusConfig = {
+  PAYMENT_PENDING: { label: 'Payment Pending', bg: '#EFF6FF', color: '#1E40AF', border: '#BFDBFE' },
   PENDING:    { label: 'Pending',    bg: '#FFFBEB', color: '#92400E', border: '#FDE68A' },
-  ACCEPTED:   { label: 'accepted',   bg: '#F3F4F6', color: '#6B7280', border: '#E5E7EB' },
+  ACCEPTED:   { label: 'Accepted',   bg: '#F3F4F6', color: '#6B7280', border: '#E5E7EB' },
   REJECTED:   { label: 'Rejected',   bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
   PROCESSING: { label: 'Processing', bg: '#F3F4F6', color: '#6B7280', border: '#E5E7EB' },
   READY:      { label: 'Ready',      bg: '#F0FDF4', color: '#166534', border: '#BBF7D0' },

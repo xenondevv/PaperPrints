@@ -189,6 +189,14 @@ async function verifyPayment(orderId) {
           const vendorData = vendorUserRes.rows[0];
           // Use the vendor-formatted order so customerName etc. are included
           const fullOrder = await getVendorOrderById(vendorData.user_id, order.id);
+          // Fallback: if customerName is still missing, fetch it directly
+          if (!fullOrder.customerName) {
+            const userRes = await query(`SELECT name FROM users WHERE id = $1`, [order.user_id]);
+            if (userRes.rows[0]) {
+              fullOrder.customerName = userRes.rows[0].name;
+            }
+            console.warn('[payment] customerName was missing from formatted order, fetched directly:', fullOrder.customerName);
+          }
           emitNewOrderToVendor(vendorData.user_id, fullOrder);
 
           // --- AUTO ACCEPT LOGIC FOR DEMO SHOPS ---

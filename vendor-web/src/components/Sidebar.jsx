@@ -59,7 +59,7 @@ export default function Sidebar({ user, onSignOut }) {
           <div style={{ marginBottom: 16 }}>
             <Image src="/favicon.png" alt="PaperPrint Logo" width={56} height={56} style={{ height: 56, width: 'auto' }} />
           </div>
-          <p style={{ fontSize: 14, fontWeight: 500, color: '#111111' }}>{user?.shopName || user?.name || 'Vendor'}</p>
+          <p style={{ fontSize: 14, fontWeight: 500, color: '#111111' }}>{user?.vendor?.shop_name || user?.name || 'Vendor'}</p>
           <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>Vendor dashboard</p>
         </div>
 

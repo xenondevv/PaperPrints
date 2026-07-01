@@ -75,7 +75,6 @@ export default function OrdersTable({ orders, loading, error, onViewOrder, actio
               </p>
               <p style={{ fontSize: 11, color: '#6B7280', marginTop: 1 }}>
                 # {order.orderNumber || order.id?.slice(0, 8)}
-                {order.customerPhone ? ` | ${order.customerPhone}` : ''}
               </p>
             </td>
             {/* Date */}

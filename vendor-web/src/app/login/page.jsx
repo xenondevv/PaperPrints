@@ -11,8 +11,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      if (user.role === 'vendor') {
+      const hasVendorProfile = user.role === 'vendor' || user.vendor != null;
+      if (hasVendorProfile && user.vendor?.is_verified) {
         router.replace('/dashboard');
+      } else if (hasVendorProfile) {
+        router.replace('/pending');
       } else {
         router.replace('/onboarding');
       }
